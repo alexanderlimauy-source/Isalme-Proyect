@@ -12,6 +12,36 @@ const productUploadsDir = path.join(__dirname, "uploads", "productos");
 const purchaseUploadsDir = path.join(__dirname, "uploads", "compras");
 fs.mkdirSync(productUploadsDir, { recursive: true });
 fs.mkdirSync(purchaseUploadsDir, { recursive: true });
+
+const localProductImagePath = imageUrl => {
+  try {
+    const pathname = new URL(String(imageUrl), "http://localhost").pathname;
+    const uploadsPrefix = "/uploads/productos/";
+    if (!pathname.startsWith(uploadsPrefix)) return null;
+    const filename = path.basename(decodeURIComponent(pathname.slice(uploadsPrefix.length)));
+    if (!filename || filename === "." || filename === "..") return null;
+    return path.join(productUploadsDir, filename);
+  } catch {
+    return null;
+  }
+};
+
+const removeProductImageFiles = imageUrls => {
+  let removed = 0;
+  for (const imageUrl of imageUrls) {
+    const imagePath = localProductImagePath(imageUrl);
+    if (!imagePath) continue;
+    try {
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        removed += 1;
+      }
+    } catch (error) {
+      console.error("No se pudo borrar la imagen del producto:", error.message);
+    }
+  }
+  return removed;
+};
 const AUTH_SECRET = process.env.AUTH_SECRET || "isalme-dev-secret-change-me";
 const allowedOrigins = new Set([
   "http://localhost:5173",
@@ -775,12 +805,45 @@ app.patch("/api/admin/productos/:id/estado", requireAuth, requireAdmin, async (r
 app.delete("/api/admin/productos/:id", requireAuth, requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: "Producto inválido" });
+  let client;
   try {
-    const resultado = await pool.query("DELETE FROM productos WHERE id = $1 RETURNING id", [id]);
-    if (!resultado.rowCount) return res.status(404).json({ error: "Producto no encontrado" });
-    res.json({ id, eliminado: true });
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const imagenesProducto = await client.query(
+      `SELECT p.imagen, COALESCE(array_agg(pi.url) FILTER (WHERE pi.url IS NOT NULL), '{}') AS imagenes
+       FROM productos p
+       LEFT JOIN producto_imagenes pi ON pi.producto_id = p.id
+       WHERE p.id = $1
+       GROUP BY p.id, p.imagen`,
+      [id]
+    );
+    if (!imagenesProducto.rowCount) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(404).json({ error: "Producto no encontrado" });
+    }
+    const imagenes = [imagenesProducto.rows[0].imagen, ...imagenesProducto.rows[0].imagenes].filter(Boolean);
+    await client.query("DELETE FROM productos WHERE id = $1", [id]);
+    const imagenesRestantes = await client.query(
+      "SELECT url FROM producto_imagenes WHERE url = ANY($1::text[])",
+      [imagenes]
+    );
+    const urlsRestantes = new Set(imagenesRestantes.rows.map(row => row.url));
+    await client.query("COMMIT");
+    client.release();
+
+    const imagenesEliminadas = removeProductImageFiles(imagenes.filter(url => !urlsRestantes.has(url)));
+    res.json({ id, eliminado: true, imagenes_eliminadas: imagenesEliminadas });
   } catch (error) {
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+      client.release();
+    }
     console.error("Error al borrar producto:", error.message);
+    if (error.code === "23503") {
+      return res.status(409).json({ error: "No se puede borrar este producto porque tiene pedidos asociados. Desactivalo en su lugar." });
+    }
+    if (error.status === 404) return res.status(404).json({ error: error.message });
     res.status(409).json({ error: "No se puede borrar este producto porque tiene pedidos asociados. Desactivalo en su lugar." });
   }
 });
