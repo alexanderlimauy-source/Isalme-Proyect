@@ -27,29 +27,26 @@ const localProductImagePath = imageUrl => {
   }
 };
 
-const productFolderName = (name, id) => {
-  const slug = String(name || "producto")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase()
-    .slice(0, 80) || "producto";
-  return `${slug}-${id}`;
-};
+const productFolderName = id => String(id);
 
-const productUploadDirectory = (name, id) => {
-  const directory = path.join(productUploadsDir, productFolderName(name, id));
+const productUploadDirectory = id => {
+  const directory = path.join(productUploadsDir, productFolderName(id));
   fs.mkdirSync(directory, { recursive: true });
   return directory;
 };
 
-const removeProductUploadDirectory = (name, id) => {
+const removeProductUploadDirectory = id => {
   try {
-    fs.rmSync(path.join(productUploadsDir, productFolderName(name, id)), { recursive: true, force: true });
+    fs.rmSync(path.join(productUploadsDir, productFolderName(id)), { recursive: true, force: true });
   } catch (error) {
     console.error("No se pudo borrar la carpeta del producto:", error.message);
   }
+};
+
+const purchaseUploadDirectory = id => {
+  const directory = path.join(purchaseUploadsDir, String(id));
+  fs.mkdirSync(directory, { recursive: true });
+  return directory;
 };
 
 const removeProductImageFiles = imageUrls => {
@@ -516,8 +513,9 @@ app.post("/api/admin/compras/:id/archivos", requireAuth, requireAdmin, async (re
   const tipoArchivo = match[1];
   const nombreOriginal = path.basename(String(archivo.nombre || "factura"));
   const nombreArchivo = `compra-${idCompra}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}${extensiones[tipoArchivo]}`;
-  const rutaFisica = path.join(purchaseUploadsDir, nombreArchivo);
-  const rutaPublica = `/uploads/compras/${nombreArchivo}`;
+  const purchaseUploadDir = purchaseUploadDirectory(idCompra);
+  const rutaFisica = path.join(purchaseUploadDir, nombreArchivo);
+  const rutaPublica = `/uploads/compras/${idCompra}/${nombreArchivo}`;
   try {
     fs.writeFileSync(rutaFisica, buffer);
     const resultado = await pool.query(
@@ -543,8 +541,12 @@ app.delete("/api/admin/compras/:id/archivos/:archivoId", requireAuth, requireAdm
     if (!resultado.rowCount) return res.status(404).json({ error: "Archivo no encontrado" });
     const ruta = String(resultado.rows[0].ruta_archivo || "");
     if (ruta.startsWith("/uploads/compras/")) {
-      const nombre = path.basename(ruta);
-      try { fs.unlinkSync(path.join(purchaseUploadsDir, nombre)); } catch {}
+      const rutaRelativa = ruta.slice("/uploads/compras/".length);
+      const rutaFisica = path.resolve(purchaseUploadsDir, decodeURIComponent(rutaRelativa));
+      const comprasRoot = path.resolve(purchaseUploadsDir);
+      if (rutaFisica.startsWith(`${comprasRoot}${path.sep}`)) {
+        try { fs.unlinkSync(rutaFisica); } catch {}
+      }
     }
     res.json({ id_archivo: idArchivo });
   } catch (error) {
@@ -682,7 +684,7 @@ app.post("/api/admin/productos", requireAuth, requireAdmin, async (req, res) => 
        RETURNING id, nombre, descripcion, precio, precio_rebaja, stock, categoria_id, imagen, activo`,
       [nombre, descripcion, precio, precioRebaja, stock, categoriaId, imagen]
     );
-    productUploadDirectory(resultado.rows[0].nombre, resultado.rows[0].id);
+    productUploadDirectory(resultado.rows[0].id);
     res.status(201).json(resultado.rows[0]);
   } catch (error) {
     console.error("Error al crear producto:", error.message);
@@ -735,8 +737,8 @@ app.post("/api/admin/productos/:id/imagenes/upload", requireAuth, requireAdmin, 
   try {
     const productoArchivo = await pool.query("SELECT nombre FROM productos WHERE id = $1", [productoId]);
     if (!productoArchivo.rowCount) throw Object.assign(new Error("Producto no encontrado"), { status: 404 });
-    const carpetaProducto = productFolderName(productoArchivo.rows[0].nombre, productoId);
-    const productUploadDir = productUploadDirectory(productoArchivo.rows[0].nombre, productoId);
+    const carpetaProducto = productFolderName(productoId);
+    const productUploadDir = productUploadDirectory(productoId);
 
     for (const [indice, archivo] of archivos.entries()) {
       const match = String(archivo?.data || "").match(/^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/);
@@ -865,7 +867,7 @@ app.delete("/api/admin/productos/:id", requireAuth, requireAdmin, async (req, re
     client.release();
 
     const imagenesEliminadas = removeProductImageFiles(imagenes.filter(url => !urlsRestantes.has(url)));
-    removeProductUploadDirectory(imagenesProducto.rows[0].nombre, id);
+    removeProductUploadDirectory(id);
     res.json({ id, eliminado: true, imagenes_eliminadas: imagenesEliminadas });
   } catch (error) {
     if (client) {
