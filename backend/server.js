@@ -46,6 +46,8 @@ const removeProductUploadDirectory = id => {
 const invoiceUploadDirectory = id => {
   const directory = path.join(invoiceUploadsDir, String(id));
   fs.mkdirSync(directory, { recursive: true });
+  const keepFile = path.join(directory, ".gitkeep");
+  if (!fs.existsSync(keepFile)) fs.writeFileSync(keepFile, "");
   return directory;
 };
 
@@ -487,6 +489,7 @@ app.post("/api/admin/compras", requireAuth, requireAdmin, async (req, res) => {
       if (!stockActualizado.rowCount) throw Object.assign(new Error("Producto inexistente"),{code:"PRODUCT_NOT_FOUND"});
     }
     await client.query("COMMIT");
+    invoiceUploadDirectory(resultado.rows[0].id_compra);
     res.status(201).json(resultado.rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
