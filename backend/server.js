@@ -51,6 +51,21 @@ const invoiceUploadDirectory = id => {
   return directory;
 };
 
+const invoiceFileName = (purchaseId, extension) => {
+  const now = new Date();
+  const part = value => String(value).padStart(2, "0");
+  return [
+    "compra",
+    purchaseId,
+    now.getFullYear(),
+    part(now.getMonth() + 1),
+    part(now.getDate()),
+    part(now.getHours()),
+    part(now.getMinutes()),
+    part(now.getSeconds())
+  ].join("_") + extension;
+};
+
 const removeProductImageFiles = imageUrls => {
   let removed = 0;
   for (const imageUrl of imageUrls) {
@@ -515,8 +530,15 @@ app.post("/api/admin/compras/:id/archivos", requireAuth, requireAdmin, async (re
   const extensiones = { "application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif" };
   const tipoArchivo = match[1];
   const nombreOriginal = path.basename(String(archivo.nombre || "factura"));
-  const nombreArchivo = `compra-${idCompra}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}${extensiones[tipoArchivo]}`;
   const invoiceUploadDir = invoiceUploadDirectory(idCompra);
+  const extension = extensiones[tipoArchivo];
+  const nombreBase = invoiceFileName(idCompra, extension);
+  let nombreArchivo = nombreBase;
+  let repeticion = 2;
+  while (fs.existsSync(path.join(invoiceUploadDir, nombreArchivo))) {
+    nombreArchivo = `${nombreBase.slice(0, -extension.length)}_${repeticion}${extension}`;
+    repeticion += 1;
+  }
   const rutaFisica = path.join(invoiceUploadDir, nombreArchivo);
   const rutaPublica = `/uploads/facturas/${idCompra}/${nombreArchivo}`;
   try {
