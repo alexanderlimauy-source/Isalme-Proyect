@@ -18,11 +18,37 @@ const localProductImagePath = imageUrl => {
     const pathname = new URL(String(imageUrl), "http://localhost").pathname;
     const uploadsPrefix = "/uploads/productos/";
     if (!pathname.startsWith(uploadsPrefix)) return null;
-    const filename = path.basename(decodeURIComponent(pathname.slice(uploadsPrefix.length)));
-    if (!filename || filename === "." || filename === "..") return null;
-    return path.join(productUploadsDir, filename);
+    const uploadsRoot = path.resolve(productUploadsDir);
+    const imagePath = path.resolve(uploadsRoot, decodeURIComponent(pathname.slice(uploadsPrefix.length)));
+    if (!imagePath.startsWith(`${uploadsRoot}${path.sep}`)) return null;
+    return imagePath;
   } catch {
     return null;
+  }
+};
+
+const productFolderName = (name, id) => {
+  const slug = String(name || "producto")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase()
+    .slice(0, 80) || "producto";
+  return `${slug}-${id}`;
+};
+
+const productUploadDirectory = (name, id) => {
+  const directory = path.join(productUploadsDir, productFolderName(name, id));
+  fs.mkdirSync(directory, { recursive: true });
+  return directory;
+};
+
+const removeProductUploadDirectory = (name, id) => {
+  try {
+    fs.rmSync(path.join(productUploadsDir, productFolderName(name, id)), { recursive: true, force: true });
+  } catch (error) {
+    console.error("No se pudo borrar la carpeta del producto:", error.message);
   }
 };
 
@@ -656,6 +682,7 @@ app.post("/api/admin/productos", requireAuth, requireAdmin, async (req, res) => 
        RETURNING id, nombre, descripcion, precio, precio_rebaja, stock, categoria_id, imagen, activo`,
       [nombre, descripcion, precio, precioRebaja, stock, categoriaId, imagen]
     );
+    productUploadDirectory(resultado.rows[0].nombre, resultado.rows[0].id);
     res.status(201).json(resultado.rows[0]);
   } catch (error) {
     console.error("Error al crear producto:", error.message);
@@ -706,14 +733,19 @@ app.post("/api/admin/productos/:id/imagenes/upload", requireAuth, requireAdmin, 
 
   const archivosProcesados = [];
   try {
+    const productoArchivo = await pool.query("SELECT nombre FROM productos WHERE id = $1", [productoId]);
+    if (!productoArchivo.rowCount) throw Object.assign(new Error("Producto no encontrado"), { status: 404 });
+    const carpetaProducto = productFolderName(productoArchivo.rows[0].nombre, productoId);
+    const productUploadDir = productUploadDirectory(productoArchivo.rows[0].nombre, productoId);
+
     for (const [indice, archivo] of archivos.entries()) {
       const match = String(archivo?.data || "").match(/^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/);
       if (!match) throw Object.assign(new Error("Solo se permiten imágenes JPG, PNG, WEBP o GIF"), { status: 400 });
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.length > 5 * 1024 * 1024) throw Object.assign(new Error("Cada imagen puede pesar hasta 5 MB"), { status: 400 });
       const nombre = `producto-${productoId}-${Date.now()}-${indice}.${extensiones[match[1]]}`;
-      fs.writeFileSync(path.join(productUploadsDir, nombre), buffer);
-      archivosProcesados.push(`http://${req.get("host")}/uploads/productos/${nombre}`);
+      fs.writeFileSync(path.join(productUploadDir, nombre), buffer);
+      archivosProcesados.push(`http://${req.get("host")}/uploads/productos/${carpetaProducto}/${nombre}`);
     }
 
     const client = await pool.connect();
@@ -810,11 +842,11 @@ app.delete("/api/admin/productos/:id", requireAuth, requireAdmin, async (req, re
     client = await pool.connect();
     await client.query("BEGIN");
     const imagenesProducto = await client.query(
-      `SELECT p.imagen, COALESCE(array_agg(pi.url) FILTER (WHERE pi.url IS NOT NULL), '{}') AS imagenes
+      `SELECT p.nombre, p.imagen, COALESCE(array_agg(pi.url) FILTER (WHERE pi.url IS NOT NULL), '{}') AS imagenes
        FROM productos p
        LEFT JOIN producto_imagenes pi ON pi.producto_id = p.id
        WHERE p.id = $1
-       GROUP BY p.id, p.imagen`,
+       GROUP BY p.id, p.nombre, p.imagen`,
       [id]
     );
     if (!imagenesProducto.rowCount) {
@@ -833,6 +865,7 @@ app.delete("/api/admin/productos/:id", requireAuth, requireAdmin, async (req, re
     client.release();
 
     const imagenesEliminadas = removeProductImageFiles(imagenes.filter(url => !urlsRestantes.has(url)));
+    removeProductUploadDirectory(imagenesProducto.rows[0].nombre, id);
     res.json({ id, eliminado: true, imagenes_eliminadas: imagenesEliminadas });
   } catch (error) {
     if (client) {
