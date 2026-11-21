@@ -1,0 +1,7 @@
+{
+  "name": "isalme-deco",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\start-dev.ps1"
+  }
+}

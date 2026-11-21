@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+frontend/dist/
+build/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Local editor and OS files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
