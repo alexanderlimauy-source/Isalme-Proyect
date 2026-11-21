@@ -9,9 +9,9 @@ const pool = require("./db");
 
 const app = express();
 const productUploadsDir = path.join(__dirname, "uploads", "productos");
-const purchaseUploadsDir = path.join(__dirname, "uploads", "compras");
+const invoiceUploadsDir = path.join(__dirname, "uploads", "facturas");
 fs.mkdirSync(productUploadsDir, { recursive: true });
-fs.mkdirSync(purchaseUploadsDir, { recursive: true });
+fs.mkdirSync(invoiceUploadsDir, { recursive: true });
 
 const localProductImagePath = imageUrl => {
   try {
@@ -43,8 +43,8 @@ const removeProductUploadDirectory = id => {
   }
 };
 
-const purchaseUploadDirectory = id => {
-  const directory = path.join(purchaseUploadsDir, String(id));
+const invoiceUploadDirectory = id => {
+  const directory = path.join(invoiceUploadsDir, String(id));
   fs.mkdirSync(directory, { recursive: true });
   return directory;
 };
@@ -513,9 +513,9 @@ app.post("/api/admin/compras/:id/archivos", requireAuth, requireAdmin, async (re
   const tipoArchivo = match[1];
   const nombreOriginal = path.basename(String(archivo.nombre || "factura"));
   const nombreArchivo = `compra-${idCompra}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}${extensiones[tipoArchivo]}`;
-  const purchaseUploadDir = purchaseUploadDirectory(idCompra);
-  const rutaFisica = path.join(purchaseUploadDir, nombreArchivo);
-  const rutaPublica = `/uploads/compras/${idCompra}/${nombreArchivo}`;
+  const invoiceUploadDir = invoiceUploadDirectory(idCompra);
+  const rutaFisica = path.join(invoiceUploadDir, nombreArchivo);
+  const rutaPublica = `/uploads/facturas/${idCompra}/${nombreArchivo}`;
   try {
     fs.writeFileSync(rutaFisica, buffer);
     const resultado = await pool.query(
@@ -540,11 +540,11 @@ app.delete("/api/admin/compras/:id/archivos/:archivoId", requireAuth, requireAdm
     const resultado = await pool.query("DELETE FROM archivos_compras_proveedores WHERE id_archivo = $1 AND id_compra = $2 RETURNING ruta_archivo", [idArchivo, idCompra]);
     if (!resultado.rowCount) return res.status(404).json({ error: "Archivo no encontrado" });
     const ruta = String(resultado.rows[0].ruta_archivo || "");
-    if (ruta.startsWith("/uploads/compras/")) {
-      const rutaRelativa = ruta.slice("/uploads/compras/".length);
-      const rutaFisica = path.resolve(purchaseUploadsDir, decodeURIComponent(rutaRelativa));
-      const comprasRoot = path.resolve(purchaseUploadsDir);
-      if (rutaFisica.startsWith(`${comprasRoot}${path.sep}`)) {
+    if (ruta.startsWith("/uploads/facturas/")) {
+      const rutaRelativa = ruta.slice("/uploads/facturas/".length);
+      const rutaFisica = path.resolve(invoiceUploadsDir, decodeURIComponent(rutaRelativa));
+      const facturasRoot = path.resolve(invoiceUploadsDir);
+      if (rutaFisica.startsWith(`${facturasRoot}${path.sep}`)) {
         try { fs.unlinkSync(rutaFisica); } catch {}
       }
     }
