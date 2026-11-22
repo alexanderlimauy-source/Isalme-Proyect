@@ -748,6 +748,10 @@ app.put("/api/admin/productos/:id/imagenes", requireAuth, requireAdmin, async (r
     await client.query("BEGIN");
     const producto = await client.query("SELECT id FROM productos WHERE id = $1", [productoId]);
     if (!producto.rowCount) throw Object.assign(new Error("Producto no encontrado"), { status: 404 });
+    const imagenesAnteriores = await client.query(
+      "SELECT url FROM producto_imagenes WHERE producto_id = $1",
+      [productoId]
+    );
     await client.query("DELETE FROM producto_imagenes WHERE producto_id = $1", [productoId]);
     for (const [indice, url] of imagenes.entries()) {
       await client.query(
@@ -756,7 +760,16 @@ app.put("/api/admin/productos/:id/imagenes", requireAuth, requireAdmin, async (r
       );
     }
     await client.query("COMMIT");
-    res.json({ producto_id: productoId, imagenes: imagenes.map((url, indice) => ({ url, orden: indice + 1 })) });
+    const directorioProducto = path.resolve(productUploadsDir, productFolderName(productoId));
+    const imagenesEliminadas = removeProductImageFiles(
+      imagenesAnteriores.rows
+        .map(row => row.url)
+        .filter(url => {
+          const imagePath = localProductImagePath(url);
+          return imagePath && path.dirname(imagePath) === directorioProducto && !imagenes.includes(url);
+        })
+    );
+    res.json({ producto_id: productoId, imagenes: imagenes.map((url, indice) => ({ url, orden: indice + 1 })), imagenes_eliminadas: imagenesEliminadas });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error al actualizar imágenes del producto:", error.message);
