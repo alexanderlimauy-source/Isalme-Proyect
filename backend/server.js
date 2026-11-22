@@ -165,6 +165,40 @@ const ensureProductImagesTable = async () => {
   `);
 };
 
+const normalizarCanalCompra = value => {
+  const canales = { web: "Web", whatsapp: "WhatsApp", local: "Local", otro: "Otro" };
+  return canales[String(value || "").trim().toLowerCase()] || "Otro";
+};
+
+const ensurePurchaseChannelConstraint = async () => {
+  const restricciones = await pool.query(`
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'compras_proveedores'
+      AND c.contype = 'c'
+      AND pg_get_constraintdef(c.oid) ILIKE '%canal_compra%'
+  `);
+  for (const restriccion of restricciones.rows) {
+    const nombre = String(restriccion.conname).replace(/"/g, '""');
+    await pool.query(`ALTER TABLE compras_proveedores DROP CONSTRAINT IF EXISTS "${nombre}"`);
+  }
+  await pool.query(`
+    UPDATE compras_proveedores
+    SET canal_compra = CASE LOWER(canal_compra)
+      WHEN 'web' THEN 'Web'
+      WHEN 'whatsapp' THEN 'WhatsApp'
+      WHEN 'local' THEN 'Local'
+      ELSE 'Otro'
+    END
+  `);
+  await pool.query(`
+    ALTER TABLE compras_proveedores
+    ADD CONSTRAINT compras_proveedores_canal_compra_check
+    CHECK (canal_compra IN ('Web', 'WhatsApp', 'Local', 'Otro'))
+  `);
+};
+
 const hashPassword = password => {
   const salt = crypto.randomBytes(16).toString("hex");
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
@@ -438,8 +472,7 @@ app.post("/api/admin/compras", requireAuth, requireAdmin, async (req, res) => {
   const idProveedor = Number(req.body?.id_proveedor);
   const fechaCompra = String(req.body?.fecha_compra || "").trim();
   const numeroFactura = String(req.body?.numero_factura || "").trim() || null;
-  const canalSolicitado = String(req.body?.canal_compra || "otro").trim().toLowerCase();
-  const canalCompra = ["web", "whatsapp", "local", "otro"].includes(canalSolicitado) ? canalSolicitado : "otro";
+  const canalCompra = normalizarCanalCompra(req.body?.canal_compra);
   const metodoSolicitado = String(req.body?.metodo_entrega || "retiro").trim().toLowerCase();
   const metodoEntrega = ["envio", "retiro"].includes(metodoSolicitado) ? metodoSolicitado : "retiro";
   const costoEnvio = req.body?.costo_envio === "" || req.body?.costo_envio == null ? 0 : Number(req.body.costo_envio);
@@ -602,7 +635,7 @@ app.patch("/api/admin/compras/:id", requireAuth, requireAdmin, async (req, res) 
   const idProveedor=Number(req.body?.id_proveedor);
   const fechaCompra=String(req.body?.fecha_compra||'').trim();
   const numeroFactura=String(req.body?.numero_factura||'').trim()||null;
-  const canalCompra=['web','whatsapp','local','otro'].includes(String(req.body?.canal_compra||'').toLowerCase())?String(req.body.canal_compra).toLowerCase():'otro';
+  const canalCompra=normalizarCanalCompra(req.body?.canal_compra);
   const metodoEntrega=['envio','retiro'].includes(String(req.body?.metodo_entrega||'').toLowerCase())?String(req.body.metodo_entrega).toLowerCase():'retiro';
   const costoEnvio=Number(req.body?.costo_envio||0);
   const fechaEntrega=String(req.body?.fecha_entrega_estimada||'').trim()||null;
@@ -988,6 +1021,7 @@ app.get("/api/productos", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 ensureProductImagesTable()
+  .then(ensurePurchaseChannelConstraint)
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Servidor funcionando en puerto ${PORT}`);

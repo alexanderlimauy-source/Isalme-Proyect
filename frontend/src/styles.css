@@ -107,7 +107,7 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .purchase-grid>span,.purchase-grid-head>b{min-width:0;overflow-wrap:anywhere}
 .purchase-grid-row>span:last-child{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
 .purchase-grid-row>span:last-child .btn{white-space:nowrap;padding:6px 8px;font-size:.7rem}
-.purchase-grid-row>span:nth-child(8) .btn{background:none;color:var(--ink);border:0;padding:0;font-size:.78rem;font-weight:600}
+.purchase-grid-row>span:nth-child(6) .btn{background:none;color:var(--ink);border:0;padding:0;font-size:.72rem;font-weight:600}
 .purchase-invoice-cell{min-width:0}
 .purchase-invoice-content{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
 .purchase-invoice-content>span:first-child{width:100%;overflow-wrap:anywhere}
@@ -158,7 +158,7 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .purchase-product-description{color:var(--muted);white-space:normal;line-height:1.25;max-height:2.5em}
 .new-purchase-product{padding:10px;background:var(--soft);border-radius:12px}
 .new-purchase-product[hidden]{display:none}
-@media (max-width:900px){.purchase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.purchase-grid-head{display:none}.purchase-grid-row>span{padding:4px 0}.purchase-grid-row>span:nth-child(1)::before{content:'Proveedor: ';font-weight:600}.purchase-grid-row>span:nth-child(2)::before{content:'Fecha: ';font-weight:600}.purchase-grid-row>span:nth-child(3)::before{content:'Canal: ';font-weight:600}.purchase-grid-row>span:nth-child(4)::before{content:'Entrega: ';font-weight:600}.purchase-grid-row>span:nth-child(5)::before{content:'Total: ';font-weight:600}.purchase-grid-row>span:nth-child(6)::before{content:'Estado: ';font-weight:600}.purchase-grid-row>span:nth-child(7)::before{content:'Pago: ';font-weight:600}.purchase-grid-row>span:nth-child(8)::before{content:'Productos: ';font-weight:600}.purchase-grid-row>span:nth-child(9)::before{content:'Factura: ';font-weight:600}.purchase-grid-row>span:nth-child(10){grid-column:1/-1}.purchase-grid-row>span:nth-child(10)::before{content:'Acciones: ';font-weight:600}}
+@media (max-width:900px){.purchase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.purchase-grid-head{display:none}.purchase-grid-row>span{padding:4px 0}.purchase-grid-row>span:nth-child(1)::before{content:'Proveedor: ';font-weight:600}.purchase-grid-row>span:nth-child(2)::before{content:'Fecha: ';font-weight:600}.purchase-grid-row>span:nth-child(3)::before{content:'Canal: ';font-weight:600}.purchase-grid-row>span:nth-child(4)::before{content:'Entrega: ';font-weight:600}.purchase-grid-row>span:nth-child(5)::before{content:'Pago: ';font-weight:600}.purchase-grid-row>span:nth-child(6)::before{content:'Productos: ';font-weight:600}.purchase-grid-row>span:nth-child(7)::before{content:'Factura: ';font-weight:600}.purchase-grid-row>span:nth-child(8)::before{content:'Estado: ';font-weight:600}.purchase-grid-row>span:nth-child(9)::before{content:'Total: ';font-weight:600}.purchase-grid-row>span:nth-child(10){grid-column:1/-1}.purchase-grid-row>span:nth-child(10)::before{content:'Acciones: ';font-weight:600}}
 .admin-product-search{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;width:100%}
 .admin-product-search input{flex:0 0 180px;width:180px;max-width:180px;height:38px;margin:0;box-sizing:border-box;font-size:.78rem}
 .admin-product-search .btn{flex:0 0 auto}
@@ -189,7 +189,7 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .product-thumb-slot{width:28px;height:28px;min-height:0;max-height:28px;flex:0 0 28px;align-self:center;display:grid;place-items:center;overflow:hidden;border-radius:5px;border:1px solid var(--line,#eadfd5);background:#f4eee8}
 .product-thumb-slot img{width:100%;height:100%;min-width:0;min-height:0;object-fit:cover;display:block}
 .product-thumb-slot.loaded{cursor:pointer}
-.product-thumb-slot.empty{height:28px!important;min-height:28px!important;max-height:28px!important;align-self:flex-start;padding:0!important}
+.product-thumb-slot.empty{height:28px!important;min-height:28px!important;max-height:28px!important;align-self:center;padding:0!important}
 .edit-images{display:grid;gap:8px;margin:12px 0}
 .edit-images>span{font-weight:600}
 .edit-image-slots{display:flex;flex-wrap:wrap;gap:8px}
