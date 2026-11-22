@@ -51,7 +51,7 @@ const invoiceUploadDirectory = id => {
   return directory;
 };
 
-const invoiceFileName = (purchaseId, extension) => {
+const invoiceFileName = (purchaseId, extension, fileNumber = 1) => {
   const now = new Date();
   const part = value => String(value).padStart(2, "0");
   return [
@@ -62,7 +62,8 @@ const invoiceFileName = (purchaseId, extension) => {
     part(now.getDate()),
     part(now.getHours()),
     part(now.getMinutes()),
-    part(now.getSeconds())
+    part(now.getSeconds()),
+    fileNumber
   ].join("_") + extension;
 };
 
@@ -548,7 +549,7 @@ app.post("/api/admin/compras/:id/archivos", requireAuth, requireAdmin, async (re
   const nombreOriginal = path.basename(String(archivo.nombre || "factura"));
   const invoiceUploadDir = invoiceUploadDirectory(idCompra);
   const extension = extensiones[tipoArchivo];
-  const nombreBase = invoiceFileName(idCompra, extension);
+  const nombreBase = invoiceFileName(idCompra, extension, 1);
   let nombreArchivo = nombreBase;
   let repeticion = 2;
   while (fs.existsSync(path.join(invoiceUploadDir, nombreArchivo))) {
