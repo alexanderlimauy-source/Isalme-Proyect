@@ -16,12 +16,26 @@ a{color:inherit}button,input,select{font:inherit;color:inherit}
 .logo small{font-weight:300;letter-spacing:.55em;font-size:.55rem;margin-right:-.55em;margin-top:4px}
 .brand-logo{display:block;width:132px;height:auto}
 footer .brand-logo{filter:brightness(0) invert(1)}
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:20px;padding:12px 24px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:20px;padding:18px 24px}
+header>a{position:absolute;left:94px;transform:none}
 header .logo{color:var(--sand-d)}
-nav{display:flex;gap:22px;margin-left:auto;margin-right:0;font-weight:500;font-size:.9rem}
+nav{display:flex;gap:22px;margin-left:0;margin-right:0;font-weight:500;font-size:.9rem}
+header>button.ic[aria-label="Mi cuenta"]{margin-left:auto}
+header .menu-toggle{display:grid;gap:1px;width:44px;height:44px;padding:10px;border:0;border-radius:0;background:transparent;cursor:pointer;place-items:center}
+header .menu-toggle span{display:block;width:22px;height:2px;border-radius:2px;background:var(--sand)}
+header nav.menu-dropdown{position:absolute;left:24px;top:calc(100% + 8px);display:none;flex-direction:column;align-items:stretch;gap:2px;min-width:170px;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 24px rgba(63,46,34,.16)}
+header nav.menu-dropdown.open{display:flex}
+header nav.menu-dropdown a{padding:9px 12px;border:0;border-radius:8px}
+header nav.menu-dropdown a:hover,header nav.menu-dropdown a.on{background:var(--soft)}
+header .header-search{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,28vw);height:42px;margin:0;padding:8px 12px 8px 36px;border:1px solid var(--line);border-radius:99px;background-color:var(--bg);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233F2E22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:12px center;font-size:.82rem}
+header .header-search:focus{outline:2px solid var(--sand);outline-offset:2px}
 nav a{text-decoration:none;padding:6px 0;border-bottom:2px solid transparent}
 nav a.on{border-color:var(--sand)}
 .ic{background:none;border:0;cursor:pointer;position:relative;padding:8px;display:grid;place-items:center}
+.ic[aria-label="Mi cuenta"],.ic[aria-label="Abrir carrito"]{display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:.8rem}
+.ic[aria-label="Mi cuenta"] svg,.ic[aria-label="Abrir carrito"] svg{display:none}
+.ic[aria-label="Mi cuenta"]::after{content:"INICIAR SESIÓN"}
+.ic[aria-label="Abrir carrito"]::after{content:"CARRITO"}
 .ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8}
 .badge{position:absolute;top:0;right:0;background:var(--sand);color:#fff;border-radius:99px;font-size:.65rem;min-width:18px;height:18px;display:grid;place-items:center;font-weight:700}
 main{min-height:70vh}

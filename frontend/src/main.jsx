@@ -60,10 +60,11 @@ function App(){
  },[page,productos]);
  useEffect(()=>{
   let activo=true;
+   setCargando(true);
   obtenerProductos()
    .then(datos=>{
-    if(!activo||!Array.isArray(datos)||!datos.length)return;
-    setProductos(adaptarProductos(datos));
+     if(!activo||!Array.isArray(datos))return;
+     setProductos(adaptarProductos(datos));
     setErrorProductos('');
    })
    .catch(error=>{
@@ -72,7 +73,39 @@ function App(){
    })
    .finally(()=>{if(activo)setCargando(false)});
   return()=>{activo=false};
- },[]);
+  },[page]);
+  useEffect(()=>{
+   const header=document.querySelector('header');
+   const nav=header?.querySelector('nav');
+   if(!header||!nav||header.querySelector('.menu-toggle'))return;
+   nav.classList.add('menu-dropdown');
+   const toggle=document.createElement('button');
+   toggle.type='button';
+   toggle.className='menu-toggle';
+   toggle.setAttribute('aria-label','Abrir menú');
+   toggle.setAttribute('aria-expanded','false');
+   toggle.innerHTML='<span></span><span></span><span></span>';
+   const cerrar=()=>{nav.classList.remove('open');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Abrir menú')};
+   toggle.addEventListener('click',()=>{const abierto=nav.classList.toggle('open');toggle.setAttribute('aria-expanded',String(abierto));toggle.setAttribute('aria-label',abierto?'Cerrar menú':'Abrir menú')});
+   nav.addEventListener('click',event=>{if(event.target.closest('a'))cerrar()});
+   header.insertBefore(toggle,nav);
+   return()=>{toggle.remove();nav.classList.remove('menu-dropdown','open')};
+  },[]);
+  useEffect(()=>{
+   const header=document.querySelector('header');
+   const cuenta=header?.querySelector('button[aria-label="Mi cuenta"]');
+   if(!header||!cuenta||header.querySelector('.header-search'))return;
+   const buscador=document.createElement('input');
+   buscador.type='search';
+   buscador.className='header-search';
+   buscador.placeholder='BUSCAR';
+   buscador.setAttribute('aria-label','Buscar productos');
+   buscador.value=query;
+   buscador.addEventListener('input',event=>setQuery(event.target.value));
+   buscador.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();location.hash='tienda'}});
+   header.insertBefore(buscador,cuenta);
+   return()=>buscador.remove();
+  },[]);
  useEffect(()=>{
   if(!productos.length)return;
   setCart(actual=>Object.fromEntries(Object.entries(actual).filter(([id])=>productos.some(producto=>producto.id===Number(id)))));
@@ -428,7 +461,7 @@ function AdminApp(){
   if(!visible||seccion!=='compras')return;
    const cerrarCalendarios=event=>{if(!event.target.closest('.purchase-calendar')&&!event.target.closest('input[data-date-format="dd/mm/yyyy"]'))document.querySelectorAll('.purchase-calendar').forEach(calendario=>calendario.hidden=true)};
   const aplicarSelectores=()=>{
-   const dialog=document.querySelector('[aria-labelledby="add-purchase-title"]');
+   const dialog=document.querySelector('[aria-labelledby="add-purchase-title"],[aria-labelledby="edit-purchase-title"]');
    if(!dialog||dialog.dataset.purchaseOptionsReady)return;
    const canal=dialog.querySelector('input[name="canal_compra"]');
    const metodo=dialog.querySelector('input[name="metodo_entrega"]');
@@ -474,9 +507,28 @@ function AdminApp(){
   aplicarSelectores();
   return()=>{observer.disconnect();document.removeEventListener('click',cerrarCalendarios)};
  },[visible,seccion]);
- useEffect(()=>{
-  if(!visible||seccion!=='compras')return;
-  const sincronizarProductosCompra=()=>{
+  useEffect(()=>{
+   if(!visible||seccion!=='compras')return;
+   const convertirMetodoEntrega=()=>{
+    document.querySelectorAll('[aria-labelledby="add-purchase-title"],[aria-labelledby="edit-purchase-title"]').forEach(dialog=>{
+     const campo=dialog.querySelector('input[name="metodo_entrega"]');
+     if(!campo)return;
+     const select=document.createElement('select');
+     select.name='metodo_entrega';
+     select.required=true;
+     select.innerHTML='<option value="envio">Envío</option><option value="retiro">Retiro</option>';
+     select.value=String(campo.value||'').toLowerCase()==='retiro'?'retiro':'envio';
+     campo.replaceWith(select);
+    });
+   };
+   const observer=new MutationObserver(convertirMetodoEntrega);
+   observer.observe(document.body,{childList:true,subtree:true});
+   convertirMetodoEntrega();
+   return()=>observer.disconnect();
+  },[visible,seccion]);
+  useEffect(()=>{
+   if(!visible||seccion!=='compras')return;
+   const sincronizarProductosCompra=()=>{
    document.querySelector('[aria-labelledby="new-purchase-product-title"] [name="descripcion"]')?.closest('label')?.remove();
    const etiquetaValorUnitario=document.querySelector('[aria-labelledby="new-purchase-product-title"] [name="precio"]')?.closest('label')?.firstChild;
    if(etiquetaValorUnitario)etiquetaValorUnitario.textContent='Valor unitario';
