@@ -89,9 +89,10 @@ export function actualizarImagenesProductoAdmin(token, id, imagenes) { return ad
 export async function subirImagenesProductoAdmin(token, id, archivos, reemplazar = Boolean(window.__reemplazarImagenes)) {
   const imagenesConservar = Array.isArray(window.__imagenesConservar) ? window.__imagenesConservar : null;
   if (imagenesConservar) {
-    await actualizarImagenesProductoAdmin(token, id, imagenesConservar);
+    const resultado = await actualizarImagenesProductoAdmin(token, id, imagenesConservar);
     reemplazar = false;
     window.__imagenesConservar = null;
+    if (!archivos?.length) return resultado;
   }
   const imagenes = await Promise.all([...archivos].filter(Boolean).map(archivo => new Promise((resolve, reject) => {
     const lector = new FileReader();
