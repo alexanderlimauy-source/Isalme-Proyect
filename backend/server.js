@@ -66,6 +66,22 @@ const invoiceFileName = (purchaseId, extension) => {
   ].join("_") + extension;
 };
 
+const productFileName = (productId, extension, imageIndex) => {
+  const now = new Date();
+  const part = value => String(value).padStart(2, "0");
+  return [
+    "productos",
+    productId,
+    now.getFullYear(),
+    part(now.getMonth() + 1),
+    part(now.getDate()),
+    part(now.getHours()),
+    part(now.getMinutes()),
+    part(now.getSeconds()),
+    imageIndex + 1
+  ].join("_") + extension;
+};
+
 const removeProductImageFiles = imageUrls => {
   let removed = 0;
   for (const imageUrl of imageUrls) {
@@ -770,7 +786,14 @@ app.post("/api/admin/productos/:id/imagenes/upload", requireAuth, requireAdmin, 
       if (!match) throw Object.assign(new Error("Solo se permiten imágenes JPG, PNG, WEBP o GIF"), { status: 400 });
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.length > 5 * 1024 * 1024) throw Object.assign(new Error("Cada imagen puede pesar hasta 5 MB"), { status: 400 });
-      const nombre = `producto-${productoId}-${Date.now()}-${indice}.${extensiones[match[1]]}`;
+      const extension = `.${extensiones[match[1]]}`;
+      const nombreBase = productFileName(productoId, extension, indice);
+      let nombre = nombreBase;
+      let repeticion = 2;
+      while (fs.existsSync(path.join(productUploadDir, nombre))) {
+        nombre = `${nombreBase.slice(0, -extension.length)}_${repeticion}${extension}`;
+        repeticion += 1;
+      }
       fs.writeFileSync(path.join(productUploadDir, nombre), buffer);
       archivosProcesados.push(`http://${req.get("host")}/uploads/productos/${carpetaProducto}/${nombre}`);
     }
