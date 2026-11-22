@@ -173,6 +173,15 @@ function AdminApp(){
  const lugaresLibres=Math.max(0,5-imagenesEditando.length);
  const user=load('u',null);
  const cargar=()=>Promise.all([obtenerResumenAdmin(user?.token),obtenerClientesAdmin(user?.token),obtenerProveedoresAdmin(user?.token),obtenerComprasAdmin(user?.token),obtenerProductosAdmin(user?.token)]).then(([r,c,v,co,p])=>{setResumen(r);setClientes(c);setProveedores(v);setCompras(co);setProductosAdmin(p)}).catch(e=>setError(e.message));
+ useEffect(()=>{
+  const sincronizarFactura=event=>{
+   const archivo=event.detail;
+   if(!archivo?.id_compra)return;
+   setCompras(actuales=>actuales.map(compra=>compra.id_compra===archivo.id_compra?{...compra,archivos:[archivo,...(compra.archivos||[])]}:compra));
+  };
+  window.addEventListener('factura-compra-subida',sincronizarFactura);
+  return()=>window.removeEventListener('factura-compra-subida',sincronizarFactura);
+ },[]);
  useEffect(()=>{const change=()=>setVisible(location.hash.slice(1)==='admin');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>setTarget(document.querySelector('#admin-host')),[visible]);
  useEffect(()=>{

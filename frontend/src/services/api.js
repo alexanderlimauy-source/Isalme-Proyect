@@ -72,7 +72,9 @@ export async function subirFacturaCompraAdmin(token, id, archivo) {
     lector.onerror = () => reject(new Error("No se pudo leer la factura"));
     lector.readAsDataURL(archivo);
   });
-  return adminFetch(`/compras/${id}/archivos`, token, { method: "POST", body: JSON.stringify({ archivo: { nombre: archivo.name, tipo: archivo.type, data } }) });
+  const resultado = await adminFetch(`/compras/${id}/archivos`, token, { method: "POST", body: JSON.stringify({ archivo: { nombre: archivo.name, tipo: archivo.type, data } }) });
+  window.dispatchEvent(new CustomEvent("factura-compra-subida", { detail: resultado }));
+  return resultado;
 }
 export function borrarFacturaCompraAdmin(token, id, archivoId) { return adminFetch(`/compras/${id}/archivos/${archivoId}`, token, { method: "DELETE" }); }
 export function crearProveedorAdmin(token, proveedor) { return adminFetch("/proveedores", token, { method: "POST", body: JSON.stringify(proveedor) }); }
