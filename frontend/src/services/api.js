@@ -64,6 +64,7 @@ export function obtenerProveedoresAdmin(token) { return adminFetch("/proveedores
 export function obtenerComprasAdmin(token) { return adminFetch("/compras", token); }
 export function crearCompraAdmin(token, compra) { return adminFetch("/compras", token, { method: "POST", body: JSON.stringify(compra) }); }
 export function actualizarCompraAdmin(token, id, compra) { return adminFetch(`/compras/${id}`, token, { method: "PATCH", body: JSON.stringify(compra) }); }
+export function actualizarProductoCompraAdmin(token, idCompra, idProducto, datos) { return adminFetch(`/compras/${idCompra}/productos/${idProducto}`, token, { method: "PATCH", body: JSON.stringify(datos) }); }
 export function borrarCompraAdmin(token, id) { return adminFetch(`/compras/${id}`, token, { method: "DELETE" }); }
 export async function subirFacturaCompraAdmin(token, id, archivo) {
   const data = await new Promise((resolve, reject) => {

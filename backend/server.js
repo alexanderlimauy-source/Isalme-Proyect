@@ -647,6 +647,66 @@ app.patch("/api/admin/compras/:id", requireAuth, requireAdmin, async (req, res) 
   try{const resultado=await pool.query(`UPDATE compras_proveedores SET id_proveedor=$1,fecha_compra=$2,numero_factura=$3,canal_compra=$4,metodo_entrega=$5,costo_envio=$6,fecha_entrega_estimada=$7,estado=$8,estado_pago=$9,total=$10,observaciones=$11 WHERE id_compra=$12 RETURNING *`,[idProveedor,fechaCompra,numeroFactura,canalCompra,metodoEntrega,costoEnvio,fechaEntrega,estado,estadoPago,total,observaciones,idCompra]);if(!resultado.rowCount)return res.status(404).json({error:'Compra no encontrada'});res.json(resultado.rows[0])}catch(error){console.error('Error al actualizar compra:',error.message);res.status(error.code==='23503'?400:500).json({error:error.code==='23503'?'El proveedor seleccionado no existe':'No se pudo actualizar la compra'})}
 });
 
+app.patch("/api/admin/compras/:id/productos/:idProducto", requireAuth, requireAdmin, async (req, res) => {
+  const idCompra = Number(req.params.id);
+  const idProducto = Number(req.params.idProducto);
+  const nombre = String(req.body?.nombre || "").trim();
+  const cantidad = Number(req.body?.cantidad);
+  const costoUnitario = Number(req.body?.costo_unitario);
+  if (!Number.isInteger(idCompra) || !Number.isInteger(idProducto) || !nombre || !Number.isInteger(cantidad) || cantidad < 1 || !Number.isFinite(costoUnitario) || costoUnitario < 0) {
+    return res.status(400).json({ error: "Revisá nombre, cantidad y valor de compra" });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const detalle = await client.query(
+      `SELECT d.cantidad, d.costo_unitario
+       FROM detalle_compras_proveedores d
+       WHERE d.id_compra = $1 AND d.id_producto = $2
+       FOR UPDATE`,
+      [idCompra, idProducto]
+    );
+    if (!detalle.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Producto no encontrado en esta compra" });
+    }
+    const diferenciaCantidad = cantidad - detalle.rows[0].cantidad;
+    const actualizado = await client.query(
+      `UPDATE productos
+       SET nombre = $1, stock = stock + $2
+       WHERE id = $3 AND stock + $2 >= 0
+       RETURNING id, nombre, stock`,
+      [nombre, diferenciaCantidad, idProducto]
+    );
+    if (!actualizado.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "El stock actual no permite reducir esa cantidad" });
+    }
+    const resultado = await client.query(
+      `UPDATE detalle_compras_proveedores
+       SET cantidad = $1, costo_unitario = $2
+       WHERE id_compra = $3 AND id_producto = $4
+       RETURNING id_compra, id_producto, cantidad, costo_unitario, subtotal`,
+      [cantidad, costoUnitario, idCompra, idProducto]
+    );
+    const totalCompra = await client.query(
+      `UPDATE compras_proveedores cp
+       SET total = COALESCE((SELECT SUM(d.subtotal) FROM detalle_compras_proveedores d WHERE d.id_compra = cp.id_compra), 0) + cp.costo_envio
+       WHERE cp.id_compra = $1
+       RETURNING total`,
+      [idCompra]
+    );
+    await client.query("COMMIT");
+    res.json({ ...resultado.rows[0], nombre: actualizado.rows[0].nombre, stock: actualizado.rows[0].stock, total: totalCompra.rows[0]?.total });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error al actualizar producto de compra:", error.message);
+    res.status(500).json({ error: "No se pudo actualizar el producto de la compra" });
+  } finally {
+    client.release();
+  }
+});
+
 app.delete("/api/admin/compras/:id", requireAuth, requireAdmin, async (req, res) => {
   const idCompra=Number(req.params.id);if(!Number.isInteger(idCompra))return res.status(400).json({error:'Compra inválida'});
   const client=await pool.connect();
@@ -723,6 +783,12 @@ app.get("/api/admin/productos", requireAuth, requireAdmin, async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT p.id, p.nombre, p.descripcion, p.precio, p.precio_rebaja, p.stock, p.imagen,
+             (SELECT d.costo_unitario
+              FROM detalle_compras_proveedores d
+              JOIN compras_proveedores cp ON cp.id_compra = d.id_compra
+              WHERE d.id_producto = p.id
+              ORDER BY cp.fecha_compra DESC NULLS LAST, cp.id_compra DESC
+              LIMIT 1) AS valor_compra,
              p.activo, p.categoria_id, c.nombre AS categoria,
              COALESCE((
                SELECT json_agg(json_build_object('id', pi.id, 'url', pi.url, 'orden', pi.orden) ORDER BY pi.orden)

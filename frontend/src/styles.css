@@ -156,6 +156,11 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .purchase-product-line input,.purchase-product-line select{margin:0}
 .purchase-product-value{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.86rem}
 .purchase-product-description{color:var(--muted);white-space:normal;line-height:1.25;max-height:2.5em}
+.purchase-products-edit-form{display:grid;gap:12px}
+.purchase-product-edit-list{display:grid;gap:8px}
+.purchase-product-edit-head,.purchase-product-edit-row{display:grid;grid-template-columns:minmax(0,1fr) 105px 130px;gap:8px;align-items:center}
+.purchase-product-edit-head{color:var(--sand-d);font-size:.72rem;font-weight:700}
+.purchase-product-edit-row input{margin:0}
 .new-purchase-product{padding:10px;background:var(--soft);border-radius:12px}
 .new-purchase-product[hidden]{display:none}
 @media (max-width:900px){.purchase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.purchase-grid-head{display:none}.purchase-grid-row>span{padding:4px 0}.purchase-grid-row>span:nth-child(1)::before{content:'Proveedor: ';font-weight:600}.purchase-grid-row>span:nth-child(2)::before{content:'Fecha: ';font-weight:600}.purchase-grid-row>span:nth-child(3)::before{content:'Canal: ';font-weight:600}.purchase-grid-row>span:nth-child(4)::before{content:'Entrega: ';font-weight:600}.purchase-grid-row>span:nth-child(5)::before{content:'Pago: ';font-weight:600}.purchase-grid-row>span:nth-child(6)::before{content:'Productos: ';font-weight:600}.purchase-grid-row>span:nth-child(7)::before{content:'Factura: ';font-weight:600}.purchase-grid-row>span:nth-child(8)::before{content:'Estado: ';font-weight:600}.purchase-grid-row>span:nth-child(9)::before{content:'Total: ';font-weight:600}.purchase-grid-row>span:nth-child(10){grid-column:1/-1}.purchase-grid-row>span:nth-child(10)::before{content:'Acciones: ';font-weight:600}}
@@ -166,7 +171,7 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .admin-products>.box{padding:14px 18px}
 .add-product-button{width:100%;justify-self:stretch}
 .add-provider-button{width:100%;margin-bottom:8px}
-.product-grid{display:grid;grid-template-columns:minmax(110px,1.1fr) 155px minmax(130px,1.5fr) 75px 90px 55px 95px 75px minmax(220px,1.7fr);gap:8px;align-items:center}
+.product-grid{display:grid;grid-template-columns:minmax(110px,1.1fr) 155px minmax(130px,1.5fr) 95px 75px 90px 55px 95px 75px minmax(220px,1.7fr);gap:8px;align-items:center}
 .product-status{font-weight:600}
 .product-status.is-active{color:#3e7650}
 .product-status.is-inactive{color:#a45a52}
@@ -214,9 +219,10 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .product-grid-row>span small{display:block}
 .product-grid-edit{grid-column:1/-1}
 .product-create-form{margin-top:0}
-@media (max-width:900px){.product-grid{grid-template-columns:1.2fr 155px 1.5fr .9fr .8fr .7fr 95px 75px}.product-grid-head b:nth-child(9),.product-grid-row>span:nth-child(9){grid-column:1/-1}.product-grid-row>span:nth-child(9){justify-content:flex-start}}
+@media (max-width:900px){.product-grid{grid-template-columns:1.2fr 155px 1.5fr .9fr .9fr .8fr .7fr 95px 75px minmax(180px,1.7fr)}.product-grid-head b:nth-child(10),.product-grid-row>span:nth-child(10){grid-column:1/-1}.product-grid-row>span:nth-child(10){justify-content:flex-start}}
 @media (max-width:700px){.product-grid{grid-template-columns:1fr 1fr}.product-grid-head{display:none}.product-grid-row>span{padding:4px 0}.product-grid-row>span:nth-child(1)::before{content:'Nombre: ';font-weight:600}.product-grid-row>span:nth-child(2)::before{content:'Imágenes: ';font-weight:600}.product-grid-row>span:nth-child(3)::before{content:'Descripción: ';font-weight:600}.product-grid-row>span:nth-child(4)::before{content:'Precio: ';font-weight:600}.product-grid-row>span:nth-child(5)::before{content:'Rebaja: ';font-weight:600}.product-grid-row>span:nth-child(6)::before{content:'Stock: ';font-weight:600}.product-grid-row>span:nth-child(7)::before{content:'Estado: ';font-weight:600}.product-grid-row>span:nth-child(8){grid-column:1/-1}}
 @media (max-width:700px){.product-edit-fields{grid-template-columns:1fr}}
+@media (max-width:700px){.product-grid-row>span:nth-child(4)::before{content:'Valor: ';font-weight:600}.product-grid-row>span:nth-child(5)::before{content:'Precio: ';font-weight:600}.product-grid-row>span:nth-child(6)::before{content:'Rebaja: ';font-weight:600}.product-grid-row>span:nth-child(7)::before{content:'Stock: ';font-weight:600}.product-grid-row>span:nth-child(8)::before{content:'Categoría: ';font-weight:600}.product-grid-row>span:nth-child(9)::before{content:'Estado: ';font-weight:600}.product-grid-row>span:nth-child(10){grid-column:1/-1}}
 .admin-top h1{margin:8px 0 0;font-size:2rem}
 .admin-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
 .admin-stats .box{display:flex;justify-content:space-between;align-items:center}

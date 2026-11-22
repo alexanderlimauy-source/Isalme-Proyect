@@ -1,4 +1,4 @@
-import { obtenerProductos, iniciarSesion, registrarUsuario, crearPedido, obtenerResumenAdmin, obtenerClientesAdmin, obtenerProveedoresAdmin, obtenerComprasAdmin, crearCompraAdmin, actualizarCompraAdmin, borrarCompraAdmin, subirFacturaCompraAdmin, borrarFacturaCompraAdmin, crearProveedorAdmin, actualizarProveedorAdmin, cambiarEstadoProveedorAdmin, obtenerProductosAdmin, crearProductoAdmin, actualizarProductoAdmin, actualizarImagenesProductoAdmin, cambiarEstadoProductoAdmin, borrarProductoAdmin, subirImagenesProductoAdmin } from "./services/api";
+import { obtenerProductos, iniciarSesion, registrarUsuario, crearPedido, obtenerResumenAdmin, obtenerClientesAdmin, obtenerProveedoresAdmin, obtenerComprasAdmin, crearCompraAdmin, actualizarCompraAdmin, actualizarProductoCompraAdmin, borrarCompraAdmin, subirFacturaCompraAdmin, borrarFacturaCompraAdmin, crearProveedorAdmin, actualizarProveedorAdmin, cambiarEstadoProveedorAdmin, obtenerProductosAdmin, crearProductoAdmin, actualizarProductoAdmin, actualizarImagenesProductoAdmin, cambiarEstadoProductoAdmin, borrarProductoAdmin, subirImagenesProductoAdmin } from "./services/api";
 import React,{useEffect,useState} from 'react';
 import{createRoot}from'react-dom/client';
 import{createPortal}from'react-dom';
@@ -232,6 +232,10 @@ function AdminApp(){
   barra.className='admin-product-search';
   barra.innerHTML='<input type="search" placeholder="Buscar producto" aria-label="Buscar producto"><select aria-label="Filtrar por categoría"><option value="">Todas las categorías</option>'+categorias.map(([id,nombre])=>'<option value="'+nombre+'">'+nombre+'</option>').join('')+'</select>';
   grilla.before(barra);
+  if(!grilla.querySelector('[data-purchase-value-header]')){
+   const encabezadoValor=document.createElement('b');encabezadoValor.dataset.purchaseValueHeader='true';encabezadoValor.textContent='Valor';grilla.insertBefore(encabezadoValor,grilla.children[3]);
+   productos.querySelectorAll('.product-grid-row').forEach((fila,index)=>{const producto=productosAdmin[index];const valor=document.createElement('span');valor.dataset.sortValue=producto?.valor_compra??'';valor.textContent=producto?.valor_compra==null?'—':'$U '+Number(producto.valor_compra).toLocaleString('es-UY');fila.insertBefore(valor,fila.children[3])});
+  }
   const campo=barra.querySelector('input');
   barra.querySelector('select')?.remove();
   const filtrar=event=>{
@@ -248,7 +252,7 @@ function AdminApp(){
    filas.forEach(fila=>{
     const texto=fila.textContent.toLowerCase();
     const categoriaFila=fila.children[6]?.textContent.toLowerCase()||'';
-    const coincideColumnas=Object.entries(filtros).every(([columna,valor])=>{const indice=Number(columna);const celda=fila.children[indice];const numerica=[3,4,5].includes(indice);const textoCelda=numerica?String(celda?.dataset.sortValue??''):(celda?.textContent.toLowerCase()||'');const textoFiltro=numerica?valor.replace(/[^0-9.-]/g,''):valor;return numerica?Number(textoCelda)===Number(textoFiltro):textoCelda.includes(textoFiltro)});
+    const coincideColumnas=Object.entries(filtros).every(([columna,valor])=>{const indice=Number(columna);const celda=fila.children[indice];const numerica=[3,4,5,6].includes(indice);const textoCelda=numerica?String(celda?.dataset.sortValue??''):(celda?.textContent.toLowerCase()||'');const textoFiltro=numerica?valor.replace(/[^0-9.-]/g,''):valor;return numerica?Number(textoCelda)===Number(textoFiltro):textoCelda.includes(textoFiltro)});
    fila.hidden=Boolean((terminoGlobal&&!texto.includes(terminoGlobal))||!coincideColumnas);
    });
    if(orden.columna!==null&&orden.direccion){
@@ -256,13 +260,13 @@ function AdminApp(){
     filas.forEach(fila=>grilla.parentElement.appendChild(fila));
    }
   };
-  const columnas=[0,2,3,4,5,6,7];
+   const columnas=[0,2,3,4,5,6,7,8];
   const titulos=['Nombre','Descripción','Precio','Rebaja','Stock','Categoría','Estado'];
   const cabeceras=grilla.querySelectorAll('b');
   columnas.forEach((columna,posicion)=>{
    const cabecera=cabeceras[columna];
    if(!cabecera)return;
-   const texto=titulos[posicion];
+   const texto=posicion===2?'Valor':titulos[posicion>2?posicion-1:posicion];
    cabecera.textContent='';
    const boton=document.createElement('button');
    boton.type='button';boton.className='grid-filter-trigger';boton.textContent=texto+' ▾';
@@ -270,9 +274,9 @@ function AdminApp(){
    boton.addEventListener('click',event=>{
     event.stopPropagation();
     document.querySelectorAll('.grid-filter-menu').forEach(menu=>menu.remove());
-     const menu=document.createElement('div');menu.className='grid-filter-menu'+(columna===6?' category-filter-menu':'');
-     const esNumerica=[3,4,5].includes(columna);
-     const esCategoria=columna===6;
+     const menu=document.createElement('div');menu.className='grid-filter-menu'+(columna===7?' category-filter-menu':'');
+     const esNumerica=[3,4,5,6].includes(columna);
+     const esCategoria=columna===7;
      menu.innerHTML=(esCategoria?'<select data-category-filter aria-label="Filtrar por categoría"><option value="">Todas</option>'+categorias.map(([,nombre])=>'<option value="'+nombre.toLowerCase()+'">'+nombre+'</option>').join('')+'</select>':'<input type="search" placeholder="Filtrar">')+'<button type="button" data-sort="1">'+(esNumerica?'Ordenar Menor - Mayor':'Ordenar A-Z')+'</button><button type="button" data-sort="-1">'+(esNumerica?'Ordenar Mayor - Menor':'Ordenar Z-A')+'</button><button type="button" data-clear>Limpiar</button>';
      if(esCategoria){
       const selector=menu.querySelector('select');
@@ -584,6 +588,42 @@ function AdminApp(){
   document.addEventListener('click',limpiarProductoPendiente);
   return()=>document.removeEventListener('click',limpiarProductoPendiente);
  },[visible,seccion]);
+ useEffect(()=>{
+  if(!visible||seccion!=='compras')return;
+  const editarProductosCompra=event=>{
+   const boton=event.target.closest?.('.purchase-grid-row button');
+   const fila=boton?.closest('.purchase-grid-row');
+   if(!boton||!fila||fila.children[5]&&!fila.children[5].contains(boton))return;
+   const indice=[...document.querySelectorAll('.purchase-grid-row')].indexOf(fila);
+   const compra=compras[indice];
+   if(!compra)return;
+   setTimeout(()=>{
+    const modal=document.querySelector('.purchase-products-modal');
+    if(!modal||modal.dataset.editable==='true')return;
+    modal.dataset.editable='true';
+    const productos=compra.productos||[];
+    modal.innerHTML='<button type="button" class="modal-close" aria-label="Cerrar">×</button><h3>Productos de la compra</h3>';
+    if(!productos.length){modal.innerHTML+='<p class="muted">Esta compra no tiene productos asociados.</p>';modal.querySelector('.modal-close').addEventListener('click',()=>modal.closest('.modal-backdrop')?.remove());return}
+    const formulario=document.createElement('form');formulario.className='purchase-products-edit-form';
+    const lista=document.createElement('div');lista.className='purchase-product-edit-list';
+    productos.forEach(producto=>{
+     const filaProducto=document.createElement('div');filaProducto.className='purchase-product-edit-row';
+     const nombre=document.createElement('input');nombre.name='nombre';nombre.type='text';nombre.required=true;nombre.value=producto.nombre||'';nombre.setAttribute('aria-label','Nombre del producto');
+     const cantidad=document.createElement('input');cantidad.name='cantidad';cantidad.type='number';cantidad.min='1';cantidad.step='1';cantidad.required=true;cantidad.value=producto.cantidad||1;cantidad.setAttribute('aria-label','Cantidad');
+     const costo=document.createElement('input');costo.name='costo_unitario';costo.type='number';costo.min='0';costo.step='0.01';costo.required=true;costo.value=producto.costo_unitario??0;costo.setAttribute('aria-label','Valor de compra');
+     filaProducto.dataset.idProducto=String(producto.id_producto);filaProducto.append(nombre,cantidad,costo);lista.append(filaProducto);
+    });
+    const encabezado=document.createElement('div');encabezado.className='purchase-product-edit-head';['Nombre','Cantidad','Valor de compra'].forEach(texto=>{const span=document.createElement('span');span.textContent=texto;encabezado.append(span)});
+    const error=document.createElement('p');error.className='err purchase-form-error';
+    const acciones=document.createElement('div');acciones.className='admin-actions';acciones.innerHTML='<button class="btn s" type="submit">Guardar cambios</button><button class="btn o s" type="button">Cancelar</button>';
+    formulario.append(encabezado,lista,error,acciones);modal.append(formulario);
+    const cerrar=()=>modal.closest('.modal-backdrop')?.remove();modal.querySelector('.modal-close').addEventListener('click',cerrar);acciones.querySelector('[type="button"]').addEventListener('click',cerrar);
+    formulario.addEventListener('submit',async submitEvent=>{submitEvent.preventDefault();error.textContent='';try{await Promise.all([...lista.children].map(filaProducto=>actualizarProductoCompraAdmin(user?.token,compra.id_compra,Number(filaProducto.dataset.idProducto),{nombre: filaProducto.querySelector('[name="nombre"]').value.trim(),cantidad:Number(filaProducto.querySelector('[name="cantidad"]').value),costo_unitario:Number(filaProducto.querySelector('[name="costo_unitario"]').value)})));cerrar();await cargar()}catch(errorGuardar){error.textContent=errorGuardar.message}});
+   },0);
+  };
+  document.addEventListener('click',editarProductosCompra);
+  return()=>document.removeEventListener('click',editarProductosCompra);
+ },[visible,seccion,compras]);
  if(!visible||user?.rol!=='admin'||!target)return null;
  const save=async e=>{e.preventDefault();const formulario=e.currentTarget;setError('');if(archivosImagenes.length>5)return setError('Podés seleccionar hasta 5 imágenes.');try{const producto=await crearProductoAdmin(user.token,{...form,precio:Number(form.precio),stock:Number(form.stock),categoria_id:form.categoria_id?Number(form.categoria_id):null});if(archivosImagenes.length)await subirImagenesProductoAdmin(user.token,producto.id,archivosImagenes);setForm({nombre:'',descripcion:'',precio:'',stock:'',categoria_id:''});setArchivosImagenes([]);formulario.reset();setCreando(false);await cargar()}catch(e){setError(e.message)}};
  const iniciarEdicion=p=>{window.__imagenesConservar=null;window.__imagenesQuitadas=[];window.__reemplazarImagenes=false;setEditandoId(p.id);setEditForm({nombre:p.nombre||'',descripcion:p.descripcion||'',precio:String(p.precio??''),stock:String(p.stock??''),categoria_id:p.categoria_id?String(p.categoria_id):'',precio_rebaja:p.precio_rebaja==null?'':String(p.precio_rebaja)});setEditArchivos([]);setImagenesQuitadas([]);setQuitarImagenes(false);setError('')};
