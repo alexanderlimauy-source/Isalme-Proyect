@@ -13,6 +13,7 @@ const precioFinal=p=>p?.r&&p.r<p.p?p.r:p?.p;
 const precioVista=p=>p?.r&&p.r<p.p?<><span className="price-original">{money(p.p)}</span><span className="price">{money(p.r)}</span></>:<span className="price">{money(p.p)}</span>;
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const displayName=user=>user?.email==='alexander.lima.uy@gmail.com'?'Admin':(user?.nombre||user?.name||user?.email?.split('@')[0]||'Usuario');
+const categoriasDisponibles=['Iluminación','Decoración','Textiles'];
 function App(){
  const [page,setPage]=useState(location.hash.slice(1)||'inicio');
  const [cart,setCart]=useState(()=>load('c',{}));const [favs,setFavs]=useState(()=>load('f',[]));
@@ -26,7 +27,7 @@ function App(){
  const [adminForm,setAdminForm]=useState({nombre:'',descripcion:'',precio:'',stock:'',imagen:'',categoria_id:''});
  const [adminError,setAdminError]=useState('');
  const P=productos.concat(Object.keys(cart).filter(id=>!productos.some(producto=>producto.id===Number(id))).map(id=>({id:Number(id),n:'Producto no disponible',d:'',p:0,r:null,stock:0,c:'',t:'#f4eee8',i:'box'})));
- const categories=['Todo',...new Set(P.map(p=>p.c))];
+ const categories=['Todo',...new Set([...categoriasDisponibles,...P.map(p=>p.c)])];
  useEffect(()=>{if(page==='cuenta'&&user?.rol==='admin')location.hash='admin'},[page,user]);
  useEffect(()=>{const change=()=>{setPage(location.hash.slice(1)||'inicio');setUser(load('u',null));setQty(1);setError('');setUserMenu(false);window.scrollTo(0,0)};window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{localStorage.setItem('c',JSON.stringify(cart))},[cart]);useEffect(()=>{localStorage.setItem('f',JSON.stringify(favs))},[favs]);useEffect(()=>{localStorage.setItem('u',JSON.stringify(user))},[user]);useEffect(()=>{localStorage.setItem('o',JSON.stringify(orders))},[orders]);
@@ -77,8 +78,18 @@ function App(){
   useEffect(()=>{
    const header=document.querySelector('header');
    const nav=header?.querySelector('nav');
-   if(!header||!nav||header.querySelector('.menu-toggle'))return;
+    if(!header||!nav)return;
    nav.classList.add('menu-dropdown');
+    nav.querySelectorAll('a[href="#inicio"],a[href="#tienda"]').forEach(link=>link.remove());
+    nav.querySelectorAll('.menu-category-link').forEach(link=>link.remove());
+    [...new Set([...categoriasDisponibles,...P.map(producto=>producto.c).filter(categoria=>categoria&&categoria!=='Sin categoría')])].forEach(categoria=>{
+     const enlace=document.createElement('a');
+     enlace.className='menu-category-link';
+     enlace.href='#tienda';
+     enlace.textContent=categoria;
+     enlace.addEventListener('click',()=>setCategory(categoria));
+     nav.append(enlace);
+    });
    const toggle=document.createElement('button');
    toggle.type='button';
    toggle.className='menu-toggle';
@@ -89,8 +100,22 @@ function App(){
    toggle.addEventListener('click',()=>{const abierto=nav.classList.toggle('open');toggle.setAttribute('aria-expanded',String(abierto));toggle.setAttribute('aria-label',abierto?'Cerrar menú':'Abrir menú')});
    nav.addEventListener('click',event=>{if(event.target.closest('a'))cerrar()});
    header.insertBefore(toggle,nav);
-   return()=>{toggle.remove();nav.classList.remove('menu-dropdown','open')};
-  },[]);
+    return()=>{toggle.remove();nav.removeEventListener('click',event=>{if(event.target.closest('a'))cerrar()});nav.classList.remove('menu-dropdown','open')};
+   },[productos]);
+  useEffect(()=>{
+   if(page!=='tienda')return;
+   const titulo=[...document.querySelectorAll('main h2')].find(elemento=>elemento.textContent.trim()==='Tienda');
+   if(!titulo)return;
+   titulo.hidden=true;
+   return()=>{titulo.hidden=false};
+  },[page]);
+  useEffect(()=>{
+   if(page!=='inicio')return;
+   const seccion=[...document.querySelectorAll('main .sec')].find(elemento=>elemento.querySelector('h2')?.textContent.trim()==='Categorías');
+   if(!seccion)return;
+   seccion.hidden=true;
+   return()=>{seccion.hidden=false};
+  },[page]);
   useEffect(()=>{
    const header=document.querySelector('header');
    const cuenta=header?.querySelector('button[aria-label="Mi cuenta"]');
@@ -105,7 +130,7 @@ function App(){
    buscador.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();location.hash='tienda'}});
    header.insertBefore(buscador,cuenta);
    return()=>buscador.remove();
-  },[]);
+  },[productos]);
  useEffect(()=>{
   if(!productos.length)return;
   setCart(actual=>Object.fromEntries(Object.entries(actual).filter(([id])=>productos.some(producto=>producto.id===Number(id)))));
@@ -135,7 +160,7 @@ function App(){
  const saveAdminProduct=async e=>{e.preventDefault();setAdminError('');try{await crearProductoAdmin(user.token,{...adminForm,precio:Number(adminForm.precio),stock:Number(adminForm.stock),categoria_id:adminForm.categoria_id?Number(adminForm.categoria_id):null});setAdminForm({nombre:'',descripcion:'',precio:'',stock:'',imagen:'',categoria_id:''});setToast('Producto creado');const datos=await obtenerProductos();if(Array.isArray(datos))setProductos(adaptarProductos(datos))}catch(error){setAdminError(error.message)}};
  const updateAdminProduct=async(p,field)=>{const value=window.prompt(field==='precio'?'Nuevo precio':'Nuevo stock',String(p[field]));if(value===null)return;const datos={precio:field==='precio'?Number(value):p.p,stock:field==='stock'?Number(value):p.stock};try{await actualizarProductoAdmin(user.token,p.id,datos);const productosActualizados=await obtenerProductos();setProductos(adaptarProductos(productosActualizados));setToast('Producto actualizado')}catch(error){setAdminError(error.message)}};
  let content;
- if(page==='inicio')content=<><section className="hero"><div className="wrap"><div><h1>Tu casa, a tu manera.</h1><p>Decoración y artículos para el hogar, pensados para que cada rincón se sienta tuyo.</p><a className="btn w" href="#tienda">Ver productos</a></div><div className="house">{icon('lamp')}</div></div></section><div className="wrap"><section className="sec"><h2>Categorías</h2><div className="cats">{categories.slice(1).map(c=><a key={c} className="chip" href="#tienda" onClick={()=>setCategory(c)}>{c}</a>)}</div></section><section className="sec" style={{paddingTop:0}}><h2>Novedades</h2>{grid(P.slice(0,4))}</section><div className="perks"><div><b>Envíos a todo el país</b><span>Gratis en compras desde $U 3.000.</span></div><div><b>Cambios sin vueltas</b><span>Tenés 10 días para cambiar tu compra.</span></div><div><b>Pago seguro</b><span>Mercado Pago, tarjeta o transferencia.</span></div></div><section className="sec"><h2>Más vendidos</h2>{grid(P.slice(4,8))}</section></div></>;
+ if(page==='inicio')content=<><section className="hero"><div className="wrap"><div><h1>Tu casa, tu lugar en el mundo.</h1><p>Decoración y artículos para el hogar, pensados para que cada rincón se sienta tuyo.</p><a className="btn w" href="#tienda">Ver productos</a></div><div className="house">{icon('lamp')}</div></div></section><div className="wrap"><section className="sec"><h2>Categorías</h2><div className="cats">{categories.slice(1).map(c=><a key={c} className="chip" href="#tienda" onClick={()=>setCategory(c)}>{c}</a>)}</div></section><section className="sec" style={{paddingTop:32}}><h2>Novedades</h2>{grid(P.slice(0,4))}</section><div className="perks"><div><b>Envíos a todo el país</b><span>Gratis en compras desde $U 3.000.</span></div><div><b>Cambios sin vueltas</b><span>Tenés 10 días para cambiar tu compra.</span></div><div><b>Pago seguro</b><span>Mercado Pago, tarjeta o transferencia.</span></div></div><section className="sec"><h2>Más vendidos</h2>{grid(P.slice(4,8))}</section></div></>;
  else if(page==='tienda')content=<div className="wrap" style={{paddingTop:40}}><h2>Tienda</h2><div className="cats" style={{marginBottom:20}}>{categories.map(c=><button key={c} className={'chip '+(c===category?'on':'')} onClick={()=>setCategory(c)}>{c}</button>)}</div><div className="bar"><input type="search" placeholder="Buscar productos" aria-label="Buscar" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Ordenar" value={sort} onChange={e=>setSort(e.target.value)}><option value="">Ordenar por</option><option value="a">Precio: menor a mayor</option><option value="d">Precio: mayor a menor</option></select></div>{filtered.length?grid(filtered):<p>No encontramos productos. Probá con otra búsqueda o categoría.</p>}</div>;
  else if(page==='admin'&&user?.rol!=='admin')content=<div className="wrap empty"><h2>Sesión de administrador requerida</h2><p>Ingresá con una cuenta administradora para acceder a Control.</p><a className="btn" href="#ingresar">Ingresar</a></div>;
  else if(page==='admin')content=<div id="admin-host" className="admin-host"/>;
