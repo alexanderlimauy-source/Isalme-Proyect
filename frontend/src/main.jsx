@@ -287,7 +287,7 @@ function AdminSidebarToggle(){
  useEffect(()=>{if(target)target.classList.toggle('is-collapsed',collapsed)},[target,collapsed]);
  useEffect(()=>{if(collapsed||!target)return;const cerrar=event=>{if(!target.contains(event.target))setCollapsed(true)};document.addEventListener('pointerdown',cerrar);return()=>document.removeEventListener('pointerdown',cerrar)},[collapsed,target]);
  if(user?.rol!=='admin'||!visible||!target)return null;
- return createPortal(<button type="button" className="admin-sidebar-toggle" aria-label={collapsed?'Abrir menú de control':'Cerrar menú de control'} aria-expanded={!collapsed} onClick={()=>setCollapsed(actual=>!actual)}><span className="admin-sidebar-mark">A</span><span className="admin-sidebar-toggle-label">CONTROL</span><span className="admin-sidebar-hamburger" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></span></button>,target);
+ return createPortal(<button type="button" className="admin-sidebar-toggle" aria-label={collapsed?'Abrir menú':'Cerrar menú'} aria-expanded={!collapsed} onClick={()=>setCollapsed(actual=>!actual)}><span className="admin-sidebar-mark">A</span><span className="admin-sidebar-toggle-label">Menú</span><span className="admin-sidebar-hamburger" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></span></button>,target);
 }
 
 function AdminApp(){
