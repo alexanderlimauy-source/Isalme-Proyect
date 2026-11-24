@@ -13,7 +13,7 @@ const precioFinal=p=>p?.r&&p.r<p.p?p.r:p?.p;
 const precioVista=p=>p?.r&&p.r<p.p?<><span className="price-original">{money(p.p)}</span><span className="price">{money(p.r)}</span></>:<span className="price">{money(p.p)}</span>;
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const displayName=user=>user?.rol==='admin'?'Admin':(user?.nombre||user?.name||user?.email?.split('@')[0]||'Usuario');
-const categoriasDisponibles=['Iluminación','Decoración','Textiles'];
+const categoriasDisponibles=['Cocina','Decoración','Textiles','Velas y aromas','Organización'];
 function App(){
  const [page,setPage]=useState(location.hash.slice(1)||'inicio');
  const [cart,setCart]=useState(()=>load('c',{}));const [favs,setFavs]=useState(()=>load('f',[]));
@@ -29,6 +29,7 @@ function App(){
  const P=productos.concat(Object.keys(cart).filter(id=>!productos.some(producto=>producto.id===Number(id))).map(id=>({id:Number(id),n:'Producto no disponible',d:'',p:0,r:null,stock:0,c:'',t:'#f4eee8',i:'box'})));
  const categories=['Todo',...new Set([...categoriasDisponibles,...P.map(p=>p.c)])];
  useEffect(()=>{if(page==='cuenta'&&user?.rol==='admin')location.hash='admin'},[page,user]);
+ useEffect(()=>{const seleccionar=event=>setCategory(event.detail);window.addEventListener('sidebar-category',seleccionar);return()=>window.removeEventListener('sidebar-category',seleccionar)},[]);
  useEffect(()=>{const change=()=>{setPage(location.hash.slice(1)||'inicio');setUser(load('u',null));setQty(1);setError('');setUserMenu(false);window.scrollTo(0,0)};window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{localStorage.setItem('c',JSON.stringify(cart))},[cart]);useEffect(()=>{localStorage.setItem('f',JSON.stringify(favs))},[favs]);useEffect(()=>{localStorage.setItem('u',JSON.stringify(user))},[user]);useEffect(()=>{localStorage.setItem('o',JSON.stringify(orders))},[orders]);
  useEffect(()=>{document.title='isAlme Hogar · '+(P.find(p=>'producto-'+p.id===page)?.n||'Decoración y artículos para el hogar')},[page]);
@@ -204,6 +205,8 @@ function App(){
 }
 function AdminLauncher(){
  const user=load('u',null);
+ const esAdmin=user?.rol==='admin';
+ const categorias=[['cocina','Cocina'],['decoracion','Decoración'],['textiles','Textiles'],['velas','Velas y aromas'],['organizacion','Organización']];
  return user?.rol==='admin'?<a className="admin-launch" href="#admin">Administración</a>:null;
 }
 
@@ -225,10 +228,10 @@ function UserLabel(){
 
 function ProfileMenu(){
  const [open,setOpen]=useState(false),[user,setUser]=useState(()=>load('u',null));
- useEffect(()=>{const refresh=()=>setUser(load('u',null));const button=document.querySelector('button[aria-label="Mi cuenta"]');if(!button)return;const toggle=e=>{const current=load('u',null);setUser(current);if(!current)return;e.preventDefault();e.stopPropagation();setOpen(value=>!value)};button.addEventListener('click',toggle,true);window.addEventListener('hashchange',()=>{setOpen(false);refresh()});window.addEventListener('storage',refresh);return()=>{button.removeEventListener('click',toggle,true);window.removeEventListener('storage',refresh)}},[]);
+ useEffect(()=>{const refresh=()=>setUser(load('u',null));const button=document.querySelector('button[aria-label="Mi cuenta"]');if(!button)return;const toggle=e=>{const current=load('u',null);setUser(current);if(!current)return;e.preventDefault();e.stopPropagation();setOpen(value=>!value)};const hashChange=()=>{setOpen(false);refresh()};const outside=e=>{if(!e.target.closest('.user-menu')&&!e.target.closest('button[aria-label="Mi cuenta"]'))setOpen(false)};button.addEventListener('click',toggle,true);window.addEventListener('hashchange',hashChange);window.addEventListener('storage',refresh);document.addEventListener('pointerdown',outside);return()=>{button.removeEventListener('click',toggle,true);window.removeEventListener('hashchange',hashChange);window.removeEventListener('storage',refresh);document.removeEventListener('pointerdown',outside)}},[]);
  if(!user||!open)return null;
  const close=()=>setOpen(false);
- return createPortal(<div className="user-menu" role="menu"><strong>{displayName(user)}</strong><small>{user.email}</small><button onClick={()=>{localStorage.removeItem('u');close();location.hash='inicio'}}>Cerrar sesión</button></div>,document.body);
+ return createPortal(<div className="user-menu" role="menu"><strong>{displayName(user)}</strong><small>{user.email}</small><button onClick={()=>{localStorage.removeItem('u');close();location.hash='inicio';location.reload()}}>Cerrar sesión</button></div>,document.body);
 }
 
 function AdminLogout(){
@@ -239,7 +242,7 @@ function AdminLogout(){
  useEffect(()=>{if(!adminPage){setTarget(null);return}const find=()=>{const node=document.querySelector('.admin-top');if(node){setTarget(node);return true}return false};if(find())return;const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});return()=>observer.disconnect()},[adminPage]);
  if(user?.rol!=='admin'||!adminPage)return null;
  if(!target)return null;
- return createPortal(<button className="admin-logout btn o s" onClick={()=>{localStorage.removeItem('u');location.hash='inicio'}}>Cerrar sesión</button>,target);
+ return createPortal(<button className="admin-logout btn o s" onClick={()=>{localStorage.removeItem('u');location.hash='inicio';location.reload()}}>Cerrar sesión</button>,target);
 }
 
 function AdminSidebar(){
@@ -247,6 +250,8 @@ function AdminSidebar(){
  const [target,setTarget]=useState(null);
  const [collapsed,setCollapsed]=useState(false);
  const user=load('u',null);
+ const esAdmin=user?.rol==='admin';
+ const categoriasProducto=[['cocina','Cocina'],['decoracion','Decoración'],['textiles','Textiles'],['velas','Velas y aromas'],['organizacion','Organización']];
  const secciones=[['productos','Productos'],['compras','Compras'],['proveedores','Proveedores'],['pedidos','Pedidos'],['clientes','Clientes'],['ventas','Ventas'],['envios','Envíos']];
  const iconos={
   productos:<><path d="M4 8h16v12H4z"/><path d="M8 8V5h8v3M8 12h8M8 16h5"/></>,
@@ -259,7 +264,7 @@ function AdminSidebar(){
  };
  useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{const goToAdmin=event=>{if(location.hash.slice(1)!=='admin'){location.hash='admin';window.setTimeout(()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:event.detail})),0)}};window.addEventListener('admin-section',goToAdmin);return()=>window.removeEventListener('admin-section',goToAdmin)},[]);
- useEffect(()=>{const normalizar=texto=>String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const activar=event=>{document.querySelectorAll('.admin-sidebar-button').forEach(button=>button.classList.toggle('is-active',normalizar(button.textContent)===normalizar(event.detail)||button.dataset.section===event.detail))};window.addEventListener('admin-section',activar);if(location.hash.slice(1)==='admin')window.setTimeout(()=>activar({detail:'productos'}),0);return()=>window.removeEventListener('admin-section',activar)},[]);
+ useEffect(()=>{const normalizar=texto=>String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const activar=event=>{document.querySelectorAll('.admin-sidebar-button').forEach(button=>button.classList.toggle('is-active',normalizar(button.textContent)===normalizar(event.detail)||button.dataset.section===event.detail))};window.addEventListener('admin-section',activar);return()=>window.removeEventListener('admin-section',activar)},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.body;if(node){setTarget(node);return true}return false};
@@ -267,15 +272,34 @@ function AdminSidebar(){
   const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
   return()=>observer.disconnect();
  },[visible]);
- if(user?.rol!=='admin'||!visible||!target)return null;
- return createPortal(<aside className="admin-sidebar" aria-label="Control de administración"><div className="admin-sidebar-brand"><span className="admin-sidebar-mark">A</span><h2>Control</h2></div>{secciones.map(([id,nombre])=><button key={id} type="button" className="admin-sidebar-button" onClick={()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:id}))}><svg viewBox="0 0 24 24" aria-hidden="true">{iconos[id]}</svg><span>{nombre}</span></button>)}</aside>,target);
+  if(user?.rol!=='admin'||!visible||!target)return null;
+ return createPortal(<aside className="admin-sidebar" aria-label="Control de administración" onMouseEnter={()=>window.dispatchEvent(new CustomEvent('sidebar-hover',{detail:true}))} onMouseLeave={()=>window.dispatchEvent(new CustomEvent('sidebar-hover',{detail:false}))}><div className="admin-sidebar-brand"><span className="admin-sidebar-mark">A</span><h2>Control</h2></div>{secciones.map(([id,nombre])=><button key={id} type="button" className="admin-sidebar-button" onClick={()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:id}))}><svg viewBox="0 0 24 24" aria-hidden="true">{iconos[id]}</svg><span>{nombre}</span></button>)}</aside>,target);
 }
 
-function AdminStoreButton(){
- const [visible,setVisible]=useState(['admin','inicio','tienda'].includes(location.hash.slice(1)));
+function UserSidebar(){
+ const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
  const user=load('u',null);
- useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ const categorias=categoriasDisponibles.map((nombre,indice)=>[String(indice),nombre]);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{
+  if(!visible){setTarget(null);return}
+  const find=()=>{const node=document.body;if(node){setTarget(node);return true}return false};
+  if(find())return;
+  const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
+  return()=>observer.disconnect();
+ },[visible]);
+ useEffect(()=>{const activar=event=>document.querySelectorAll('.admin-sidebar-button').forEach(button=>button.classList.toggle('is-active',button.textContent.trim()===event.detail));window.addEventListener('sidebar-category',activar);return()=>window.removeEventListener('sidebar-category',activar)},[]);
+ if(user?.rol==='admin'||!visible||!target)return null;
+ const iconos=[<><path d="M5 7h12v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V7Z"/><path d="M17 10h2a3 3 0 0 1 0 6h-2M8 4v3M12 4v3"/></>,<><path d="M9 4h6M10 4c0 4-4 5-4 10a6 6 0 0 0 12 0c0-5-4-6-4-10M8 20h8"/></>,<><path d="M4 5h16v14H4z"/><path d="M4 10h16M10 5v5M16 10v9"/></>,<><path d="M9 8h6v3l2 2v7H7v-7l2-2V8Z"/><path d="M10 8V4M12 8V3M14 8V5"/></>,<><path d="M4 9h16l-2 11H6L4 9Z"/><path d="M8 9c0-3 1.5-5 4-5s4 2 4 5M8 13h8M7 17h10"/></>];
+ return createPortal(<aside className="admin-sidebar" aria-label="Categorías" onMouseEnter={()=>window.dispatchEvent(new CustomEvent('sidebar-hover',{detail:true}))} onMouseLeave={()=>window.dispatchEvent(new CustomEvent('sidebar-hover',{detail:false}))}><div className="admin-sidebar-brand"><h2>Categorías</h2></div>{categorias.map(([id,nombre],indice)=><button key={id} type="button" className="admin-sidebar-button" onClick={()=>{location.hash='tienda';window.setTimeout(()=>window.dispatchEvent(new CustomEvent('sidebar-category',{detail:nombre})),0)}}><svg viewBox="0 0 24 24" aria-hidden="true">{iconos[indice]}</svg><span>{nombre}</span></button>)}</aside>,target);
+}
+
+function BrandSidebarButton(){
+ const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));
+ const [target,setTarget]=useState(null);
+ const user=load('u',null);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
@@ -283,16 +307,32 @@ function AdminStoreButton(){
   const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
   return()=>observer.disconnect();
  },[visible]);
- if(user?.rol!=='admin'||!visible||!target)return null;
- return createPortal(<a className="admin-sidebar-store" href="#tienda" aria-label="Ir a la tienda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16l-1 11H5L4 9Z"/><path d="M8 9a4 4 0 0 1 8 0"/></svg></a>,target);
+ if(user?.rol==='admin'||!visible||!target)return null;
+ return createPortal(<a className="admin-sidebar-brand-link" href="#tienda" aria-label="by ISALME"><img src="/assets/banners/logo_A_arena_sin_fondo.svg" alt=""/><span>by ISALME</span></a>,target);
+}
+
+function AdminStoreButton(){
+ const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));
+ const [target,setTarget]=useState(null);
+ const user=load('u',null);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{
+  if(!visible){setTarget(null);return}
+  const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
+  if(find())return;
+  const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
+  return()=>observer.disconnect();
+ },[visible]);
+  if(!visible||!target)return null;
+  return createPortal(<a className="admin-sidebar-store" href="#tienda" aria-label="Ir a la tienda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16l-1 11H5L4 9Z"/><path d="M8 9a4 4 0 0 1 8 0"/></svg><span>Tienda</span></a>,target);
 }
 
 function AdminSidebarToggle(){
- const [visible,setVisible]=useState(['admin','inicio','tienda'].includes(location.hash.slice(1)));
+ const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
  const [collapsed,setCollapsed]=useState(true);
  const user=load('u',null);
- useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
@@ -301,8 +341,9 @@ function AdminSidebarToggle(){
   return()=>observer.disconnect();
  },[visible]);
  useEffect(()=>{if(target)target.classList.toggle('is-collapsed',collapsed)},[target,collapsed]);
+ useEffect(()=>{setCollapsed(true);const cambiar=event=>setCollapsed(!event.detail);window.addEventListener('sidebar-hover',cambiar);return()=>window.removeEventListener('sidebar-hover',cambiar)},[user?.rol]);
  useEffect(()=>{if(collapsed||!target)return;const cerrar=event=>{if(!target.contains(event.target))setCollapsed(true)};document.addEventListener('pointerdown',cerrar);return()=>document.removeEventListener('pointerdown',cerrar)},[collapsed,target]);
- if(user?.rol!=='admin'||!visible||!target)return null;
+  if(!visible||!target)return null;
  return createPortal(<button type="button" className="admin-sidebar-toggle" aria-label={collapsed?'Abrir menú':'Cerrar menú'} aria-expanded={!collapsed} onClick={()=>setCollapsed(actual=>!actual)}><span className="admin-sidebar-mark">A</span><span className="admin-sidebar-toggle-label">Menú</span><span className="admin-sidebar-hamburger" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></span></button>,target);
 }
 
@@ -811,7 +852,7 @@ function AdminApp(){
  const edit=async(p,field)=>{const value=window.prompt(field==='precio'?'Nuevo precio':'Nuevo stock',String(field==='precio'?p.precio:p.stock));if(value===null)return;try{await actualizarProductoAdmin(user.token,p.id,{nombre:p.nombre,descripcion:p.descripcion||'',precio:field==='precio'?Number(value):Number(p.precio),stock:field==='stock'?Number(value):Number(p.stock),categoria_id:p.categoria_id||null});await cargar()}catch(e){setError(e.message)}};
 const toggle=async p=>{try{await cambiarEstadoProductoAdmin(user.token,p.id,!p.activo);await cargar()}catch(e){setError(e.message)}};
  const remove=async p=>{if(!window.confirm('¿Borrar el producto '+p.nombre+'? Esta acción no se puede deshacer.'))return;try{await borrarProductoAdmin(user.token,p.id);await cargar()}catch(e){setError(e.message)}};
- const categorias=[['1','Iluminación'],['2','Decoración'],['3','Textiles']];
+ const categorias=[['1','Cocina'],['2','Decoración'],['3','Textiles'],['4','Velas y aromas'],['5','Organización']];
  const secciones=[['productos','Productos'],['proveedores','Proveedores'],['compras','Compras'],['pedidos','Pedidos'],['clientes','Clientes'],['ventas','Ventas'],['categorias','Categoría'],['envios','Envíos']];
  const categoriaSelect=(values,setValues)=><select value={values.categoria_id} onChange={e=>setValues({...values,categoria_id:e.target.value})}><option value="">Sin categoría</option>{categorias.map(([id,nombre])=><option key={id} value={id}>{nombre}</option>)}</select>;
  return createPortal(<div className="admin-screen"><div className="admin-top"><button className="btn o s" onClick={()=>{location.hash='inicio'}}>Volver a la tienda</button></div><div className="admin-menu"><select id="admin-section" value={seccion} onChange={e=>setSeccion(e.target.value)}>{secciones.map(([id,nombre])=><option key={id} value={id}>{nombre}</option>)}</select></div>{error&&<p className="err" role="alert">{error}</p>}{seccion==='productos'&&<div className="admin-products"><button className="btn add-product-button" onClick={()=>setCreando(true)}>Agregar producto</button><section className="box"><div className="product-grid product-grid-head"><b>Nombre</b><b>Imágenes</b><b>Descripción</b><b>Precio</b><b>Rebaja</b><b>Stock</b><b>Categoría</b><b>Estado</b><b>Acciones</b></div>{productosAdmin.map(p=><div className="product-grid product-grid-row" key={p.id}><span><b>{p.nombre}</b></span><span className="product-thumbnails">{Array.from({length:5},(_,index)=>{const imagen=p.imagenes?.[index];const url=imagen?.url||imagen;return <span className={'product-thumb-slot '+(url?'loaded':'empty')} key={url||'empty-'+index}>{url?<img src={url} alt="Vista previa" onClick={()=>setImagenPreview(url)}/>:<img src={imagenDefault} alt="Sin imagen"/>}</span>})}</span><span>{p.descripcion||'—'}</span><span data-sort-value={p.precio}>$U {Number(p.precio).toLocaleString('es-UY')}</span><span data-sort-value={p.precio_rebaja??''}>{p.precio_rebaja||'—'}</span><span data-sort-value={p.stock}>{p.stock}</span><span>{p.categoria||'Sin categoría'}</span><span className={p.activo?'product-status is-active':'product-status is-inactive'}>{p.activo?'Activo':'Inactivo'}</span><span className="admin-actions"><button className="btn s" onClick={()=>iniciarEdicion(p)}>Editar</button><button className={'btn o s state-toggle '+(p.activo?'is-inactive':'is-active')} onClick={()=>toggle(p)}>{p.activo?'Desactivar':'Activar'}</button><button className="btn danger s" onClick={()=>remove(p)}>Borrar</button></span></div>)}{editandoId!==null&&<div className="modal-backdrop" onClick={cancelarEdicion}><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="edit-product-title" onClick={e=>e.stopPropagation()}><button className="modal-close" type="button" onClick={cancelarEdicion} aria-label="Cerrar">×</button><form className="product-edit-form" onSubmit={guardarEdicion}><h3 id="edit-product-title">Editar producto</h3><label>Nombre<input required value={editForm.nombre} onChange={e=>setEditForm({...editForm,nombre:e.target.value})}/></label><label>Descripción<textarea value={editForm.descripcion} onChange={e=>setEditForm({...editForm,descripcion:e.target.value})}/></label><div className="product-edit-fields"><label>Precio<input required type="number" min="0" value={editForm.precio} onChange={e=>setEditForm({...editForm,precio:e.target.value})}/></label><label>Rebaja<input type="number" min="0" value={editForm.precio_rebaja} onChange={e=>setEditForm({...editForm,precio_rebaja:e.target.value})}/></label><label>Stock<input required type="number" min="0" value={editForm.stock} onChange={e=>setEditForm({...editForm,stock:e.target.value})}/></label><label>Categoría{categoriaSelect(editForm,setEditForm)}</label></div><div className="edit-images"><span>Imágenes del producto (máximo 5)</span><div className="edit-image-slots">{Array.from({length:5},(_,index)=>{const imagen=(productoEditando?.imagenes||[]).filter(item=>!imagenesQuitadas.includes(item.url||item))[index];const archivo=editArchivos[index];const url=imagen?.url||imagen;return <span className={'edit-image-slot '+(url||archivo?'loaded':'empty')} key={url||archivo?.name||'empty-'+index}>{url?<><img src={url} alt={'Imagen '+(index+1)}/><button type="button" className="edit-image-remove" onClick={()=>{setImagenesQuitadas(actuales=>{const siguiente=actuales.includes(url)?actuales:actuales.concat(url);window.__imagenesConservar=(productoEditando?.imagenes||[]).map(item=>item.url||item).filter(item=>!siguiente.includes(item));return siguiente})}} aria-label="Quitar imagen">×</button></>:archivo?<><img src={archivo.preview||imagenDefault} alt={'Imagen pendiente '+(index+1)}/><button type="button" className="edit-image-remove" onClick={()=>setEditArchivos(actuales=>{const siguiente=[...actuales];siguiente[index]=null;return siguiente})} aria-label="Quitar imagen">×</button></>:<><img src={imagenDefault} alt="Sin imagen"/><label className="edit-image-add" aria-label={'Agregar imagen '+(index+1)}>+<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={event=>{const nuevo=event.target.files?.[0];if(!nuevo)return;const archivoConVista=Object.assign(nuevo,{preview:URL.createObjectURL(nuevo)});setEditArchivos(actuales=>{const siguiente=[...actuales];siguiente[index]=archivoConVista;return siguiente.slice(0,5)});event.target.value=''}}/></label></>}</span>})}</div><small>{(productoEditando?.imagenes||[]).filter(item=>!imagenesQuitadas.includes(item.url||item)).length+editArchivos.filter(Boolean).length} cargadas - {Math.max(0,5-(productoEditando?.imagenes||[]).filter(item=>!imagenesQuitadas.includes(item.url||item)).length-editArchivos.filter(Boolean).length)} lugares libres.</small></div><label className="checkbox-label"><input type="checkbox" checked={quitarImagenes} onChange={e=>setQuitarImagenes(e.target.checked)}/> Quitar imágenes actuales</label><div className="admin-actions"><button className="btn s" type="submit">Guardar cambios</button><button className="btn o s" type="button" onClick={cancelarEdicion}>Cancelar</button></div></form></div></div>}{creando&&<div className="modal-backdrop" onClick={()=>setCreando(false)}><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="add-product-title" onClick={e=>e.stopPropagation()}><button className="modal-close" type="button" onClick={()=>setCreando(false)} aria-label="Cerrar">×</button><form className="product-edit-form" onSubmit={save}><h3 id="add-product-title">Agregar producto</h3>{[['nombre','Nombre'],['descripcion','Descripción'],['precio','Precio'],['stock','Stock']].map(([name,label])=><label key={name}>{label}<input name={name} type={name==='precio'||name==='stock'?'number':'text'} min={name==='precio'||name==='stock'?'0':undefined} required value={form[name]} onChange={e=>setForm({...form,[name]:e.target.value})}/></label>)}<label>Imágenes del producto (máximo 5)<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={e=>setArchivosImagenes([...e.target.files].slice(0,5))}/><small>{archivosImagenes.length} seleccionadas</small></label><label>Categoría{categoriaSelect(form,setForm)}</label><button className="btn" type="submit">Guardar producto</button><small>Los productos nuevos se guardan desactivados.</small></form></div></div>}{imagenPreview&&<div className="modal-backdrop" onClick={()=>setImagenPreview(null)}><div className="image-preview-modal" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><button className="modal-close" type="button" onClick={()=>setImagenPreview(null)} aria-label="Cerrar">×</button><img src={imagenPreview} alt="Imagen del producto ampliada"/></div></div>}</section></div>}{seccion==='clientes'&&<section className="box"><h2>Clientes registrados</h2>{clientes.length?clientes.map(c=><div className="admin-row" key={c.id}><span><b>{c.nombre}</b><small>{c.email}</small></span><small>{c.fecha_registro?new Date(c.fecha_registro).toLocaleDateString('es-UY'):''}</small></div>):<p>No hay clientes registrados.</p>}</section>}<>{seccion==='pedidos'&&<section className="box admin-section-card"><h2>Pedidos</h2><p>Hay <b>{resumen?.pedidos??0}</b> pedidos registrados.</p><p className="muted">La gestión detallada de pedidos se conectará en esta sección.</p></section>}{seccion==='ventas'&&<section className="box admin-section-card"><h2>Ventas</h2><p>Resumen de ventas disponible próximamente.</p><p className="muted">Aquí se podrán consultar totales, períodos y productos más vendidos.</p></section>}{seccion==='categorias'&&<section className="box admin-section-card"><h2>Categorías</h2><div className="admin-category-list">{categorias.map(([id,nombre])=><div className="admin-row" key={id}><b>{nombre}</b><small>ID: {id}</small></div>)}</div><p className="muted">La creación y edición de categorías se agregará aquí.</p></section>}{seccion==='envios'&&<section className="box admin-section-card"><h2>Envíos</h2><p>Configuración y seguimiento de envíos.</p><p className="muted">Esta sección queda preparada para conectar estados y métodos de entrega.</p></section>}</></div>,target);
@@ -822,4 +863,4 @@ class AppErrorBoundary extends React.Component{
  static getDerivedStateFromError(error){return {error}};
  render(){return this.state.error?<main className="wrap empty"><h2>Ocurrió un error inesperado</h2><p>Recargá la página para intentar nuevamente.</p><button className="btn" onClick={()=>location.reload()}>Recargar</button></main>:this.props.children}
 }
-createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminSidebar/><AdminSidebarToggle/><AdminStoreButton/></></AppErrorBoundary>);
+createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminSidebar/><UserSidebar/><BrandSidebarButton/><AdminSidebarToggle/><AdminStoreButton/></></AppErrorBoundary>);

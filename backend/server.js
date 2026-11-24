@@ -165,6 +165,19 @@ const ensureProductImagesTable = async () => {
   `);
 };
 
+const ensureCategoryNames = async () => {
+  await pool.query(`
+    UPDATE categorias
+    SET nombre = CASE id
+      WHEN 1 THEN 'Cocina'
+      WHEN 2 THEN 'Decoración'
+      WHEN 3 THEN 'Textiles'
+      ELSE nombre
+    END
+    WHERE id IN (1, 2, 3)
+  `);
+};
+
 const normalizarCanalCompra = value => {
   const canales = { web: "Web", whatsapp: "WhatsApp", local: "Local", otro: "Otro" };
   return canales[String(value || "").trim().toLowerCase()] || "Otro";
@@ -792,7 +805,8 @@ app.get("/api/admin/productos", requireAuth, requireAdmin, async (req, res) => {
               WHERE d.id_producto = p.id
               ORDER BY cp.fecha_compra DESC NULLS LAST, cp.id_compra DESC
               LIMIT 1) AS valor_compra,
-             p.activo, p.categoria_id, c.nombre AS categoria,
+             p.activo, p.categoria_id,
+             CASE c.id WHEN 1 THEN 'Cocina' WHEN 2 THEN 'Decoración' WHEN 3 THEN 'Textiles' ELSE c.nombre END AS categoria,
              COALESCE((
                SELECT json_agg(json_build_object('id', pi.id, 'url', pi.url, 'orden', pi.orden) ORDER BY pi.orden)
                FROM producto_imagenes pi WHERE pi.producto_id = p.id
@@ -1061,7 +1075,7 @@ app.get("/api/productos", async (req, res) => {
     p.imagen,
     p.activo,
     p.categoria_id,
-    c.nombre AS categoria,
+    CASE c.id WHEN 1 THEN 'Cocina' WHEN 2 THEN 'Decoración' WHEN 3 THEN 'Textiles' ELSE c.nombre END AS categoria,
     COALESCE((
       SELECT json_agg(
         json_build_object('id', pi.id, 'url', pi.url, 'orden', pi.orden)
@@ -1090,6 +1104,7 @@ app.get("/api/productos", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 ensureProductImagesTable()
+  .then(ensureCategoryNames)
   .then(ensurePurchaseChannelConstraint)
   .then(() => {
     app.listen(PORT, () => {
