@@ -97,30 +97,30 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .admin-sidebar-brand h2{margin:0;font-size:1.05rem;color:var(--sand-d)}
 .admin-sidebar-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--sand-d);color:#fff;font-weight:700;font-size:1.05rem}
 .admin-sidebar-brand{display:none}
-.admin-sidebar-toggle{order:-1;display:flex;align-items:center;gap:10px;width:100%;padding:0 8px 12px;margin-bottom:4px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.admin-sidebar-toggle{order:-1;display:flex;align-items:center;gap:10px;width:100%;padding:0 8px;margin-bottom:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .admin-sidebar-toggle-label{font-size:1.05rem;font-weight:600;color:var(--sand-d)}
 .admin-sidebar-toggle .admin-sidebar-mark{display:none}
-.admin-sidebar-hamburger{order:-1;display:grid;gap:4px;margin-left:0;padding:4px}
-.admin-sidebar-hamburger i{display:block;width:20px;height:2px;border-radius:2px;background:var(--sand-d)}
-.admin-sidebar-button{position:relative;width:44px;align-self:flex-start;display:flex;align-items:center;justify-content:center;padding:8px;border:0;border-radius:8px;background:#fff;color:var(--sand-d);font:inherit;font-size:.8rem;text-align:left;cursor:pointer;transition:background .2s ease,transform .2s ease}
-.admin-sidebar-button span{position:absolute;left:54px;white-space:nowrap;color:var(--ink);font-size:.82rem;font-weight:500;pointer-events:none}
+.admin-sidebar-hamburger{order:-1;width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;gap:4px;margin-left:0;padding:0;border-radius:50%;background:#fff;transform:translateX(-12px)}
+.admin-sidebar-hamburger svg{width:22px;height:22px;display:block;fill:none;stroke:var(--sand-d);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.admin-sidebar-button{position:relative;width:36px;height:36px;align-self:center;display:flex;align-items:center;justify-content:center;padding:6px;border:0;border-radius:50%;background:transparent;color:var(--sand-d);font:inherit;font-size:.8rem;text-align:left;cursor:pointer;transition:background .2s ease,transform .2s ease}
+.admin-sidebar-button span{display:none;position:absolute;left:54px;white-space:nowrap;color:var(--ink);font-size:.82rem;font-weight:500;pointer-events:none}
 .admin-sidebar-button.is-active span{color:var(--sand-d)}
 .admin-sidebar-button svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--sand-d);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .admin-sidebar-button:hover,.admin-sidebar-button:focus-visible{background:var(--sand);color:#fff;outline:none;transform:translateX(2px)}
 .admin-sidebar-button:hover svg,.admin-sidebar-button:focus-visible svg{stroke:#fff}
 .admin-sidebar-button.is-active{background:var(--sand);color:#fff;transform:none}
 .admin-sidebar-button.is-active svg{stroke:#fff}
-.admin-sidebar.is-collapsed{width:72px;padding-left:10px;padding-right:10px}
+.admin-sidebar.is-collapsed{width:60px;padding-left:8px;padding-right:8px}
 .admin-sidebar.is-collapsed .admin-sidebar-toggle{justify-content:center;padding-left:0;padding-right:0}
 .admin-sidebar.is-collapsed .admin-sidebar-mark,.admin-sidebar.is-collapsed .admin-sidebar-toggle-label,.admin-sidebar.is-collapsed .admin-sidebar-button span{display:none}
-.admin-sidebar.is-collapsed .admin-sidebar-hamburger{margin-left:0;transform:translateX(-3.5px)}
-.admin-sidebar.is-collapsed .admin-sidebar-button{width:44px;justify-content:center;padding-left:6px;padding-right:6px}
+.admin-sidebar.is-collapsed .admin-sidebar-hamburger{margin-left:0;transform:none}
+.admin-sidebar.is-collapsed .admin-sidebar-button{width:36px;justify-content:center;padding-left:6px;padding-right:6px}
 .admin-sidebar.is-collapsed .admin-sidebar-button svg{width:20px;height:20px}
-.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]){width:72px;padding-left:10px;padding-right:10px}
+.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]){width:60px;padding-left:8px;padding-right:8px}
 .admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-toggle{justify-content:center;padding-left:0;padding-right:0}
 .admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-mark,.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-toggle-label,.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-button span{display:none}
-.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-hamburger{margin-left:0;transform:translateX(-3.5px)}
-.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-button{width:44px;justify-content:center;padding-left:6px;padding-right:6px}
+.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-hamburger{margin-left:0;transform:none}
+.admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-button{width:36px;justify-content:center;padding-left:6px;padding-right:6px}
 .admin-sidebar:has(.admin-sidebar-toggle[aria-expanded="false"]) .admin-sidebar-button svg{width:20px;height:20px}
 .admin-top{display:flex;justify-content:flex-start;align-items:center;gap:12px;margin-bottom:6px}
 .admin-top>div:first-child{margin-right:auto}
