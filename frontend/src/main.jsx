@@ -243,7 +243,7 @@ function AdminLogout(){
 }
 
 function AdminSidebar(){
- const [visible,setVisible]=useState(['admin','inicio'].includes(location.hash.slice(1)));
+ const [visible,setVisible]=useState(['admin','inicio','tienda'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
  const [collapsed,setCollapsed]=useState(false);
  const user=load('u',null);
@@ -257,7 +257,7 @@ function AdminSidebar(){
   ventas:<><path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></>,
   envios:<><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></>
  };
- useEffect(()=>{const change=()=>setVisible(['admin','inicio'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{const goToAdmin=event=>{if(location.hash.slice(1)!=='admin'){location.hash='admin';window.setTimeout(()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:event.detail})),0)}};window.addEventListener('admin-section',goToAdmin);return()=>window.removeEventListener('admin-section',goToAdmin)},[]);
  useEffect(()=>{const normalizar=texto=>String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const activar=event=>{document.querySelectorAll('.admin-sidebar-button').forEach(button=>button.classList.toggle('is-active',normalizar(button.textContent)===normalizar(event.detail)||button.dataset.section===event.detail))};window.addEventListener('admin-section',activar);if(location.hash.slice(1)==='admin')window.setTimeout(()=>activar({detail:'productos'}),0);return()=>window.removeEventListener('admin-section',activar)},[]);
  useEffect(()=>{
@@ -271,12 +271,28 @@ function AdminSidebar(){
  return createPortal(<aside className="admin-sidebar" aria-label="Control de administración"><div className="admin-sidebar-brand"><span className="admin-sidebar-mark">A</span><h2>Control</h2></div>{secciones.map(([id,nombre])=><button key={id} type="button" className="admin-sidebar-button" onClick={()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:id}))}><svg viewBox="0 0 24 24" aria-hidden="true">{iconos[id]}</svg><span>{nombre}</span></button>)}</aside>,target);
 }
 
+function AdminStoreButton(){
+ const [visible,setVisible]=useState(['admin','inicio','tienda'].includes(location.hash.slice(1)));
+ const [target,setTarget]=useState(null);
+ const user=load('u',null);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{
+  if(!visible){setTarget(null);return}
+  const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
+  if(find())return;
+  const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
+  return()=>observer.disconnect();
+ },[visible]);
+ if(user?.rol!=='admin'||!visible||!target)return null;
+ return createPortal(<a className="admin-sidebar-store" href="#tienda" aria-label="Ir a la tienda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16l-1 11H5L4 9Z"/><path d="M8 9a4 4 0 0 1 8 0"/></svg></a>,target);
+}
+
 function AdminSidebarToggle(){
- const [visible,setVisible]=useState(['admin','inicio'].includes(location.hash.slice(1)));
+ const [visible,setVisible]=useState(['admin','inicio','tienda'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
  const [collapsed,setCollapsed]=useState(true);
  const user=load('u',null);
- useEffect(()=>{const change=()=>setVisible(['admin','inicio'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
@@ -806,4 +822,4 @@ class AppErrorBoundary extends React.Component{
  static getDerivedStateFromError(error){return {error}};
  render(){return this.state.error?<main className="wrap empty"><h2>Ocurrió un error inesperado</h2><p>Recargá la página para intentar nuevamente.</p><button className="btn" onClick={()=>location.reload()}>Recargar</button></main>:this.props.children}
 }
-createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminSidebar/><AdminSidebarToggle/></></AppErrorBoundary>);
+createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminSidebar/><AdminSidebarToggle/><AdminStoreButton/></></AppErrorBoundary>);

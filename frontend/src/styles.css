@@ -113,6 +113,9 @@ h2{font-size:1.8rem;margin:0 0 24px;letter-spacing:-.02em;font-weight:700}
 .admin-sidebar-button:hover svg,.admin-sidebar-button:focus-visible svg{stroke:#fff}
 .admin-sidebar-button.is-active{background:var(--sand);color:#fff;transform:none}
 .admin-sidebar-button.is-active svg{stroke:#fff}
+.admin-sidebar-store{width:36px;height:36px;align-self:center;display:grid;place-items:center;margin-top:auto;margin-bottom:2px;border-radius:50%;background:var(--sand);color:#fff;text-decoration:none;transition:transform .2s ease,background .2s ease}
+.admin-sidebar-store svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.admin-sidebar-store:hover,.admin-sidebar-store:focus-visible{background:var(--sand-d);transform:scale(1.05);outline:none}
 .admin-sidebar.is-collapsed{width:60px;padding-left:8px;padding-right:8px}
 .admin-sidebar.is-collapsed .admin-sidebar-toggle{width:44px;height:44px;justify-content:center;padding:0}
 .admin-sidebar.is-collapsed .admin-sidebar-mark,.admin-sidebar.is-collapsed .admin-sidebar-toggle-label,.admin-sidebar.is-collapsed .admin-sidebar-button span{display:none}
