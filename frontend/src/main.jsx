@@ -12,7 +12,7 @@ const imagenDefault='data:image/svg+xml,%3Csvg xmlns=%22http%3A%2F%2Fwww.w3.org%
 const precioFinal=p=>p?.r&&p.r<p.p?p.r:p?.p;
 const precioVista=p=>p?.r&&p.r<p.p?<><span className="price-original">{money(p.p)}</span><span className="price">{money(p.r)}</span></>:<span className="price">{money(p.p)}</span>;
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
-const displayName=user=>user?.email==='alexander.lima.uy@gmail.com'?'Admin':(user?.nombre||user?.name||user?.email?.split('@')[0]||'Usuario');
+const displayName=user=>user?.rol==='admin'?'Admin':(user?.nombre||user?.name||user?.email?.split('@')[0]||'Usuario');
 const categoriasDisponibles=['Iluminación','Decoración','Textiles'];
 function App(){
  const [page,setPage]=useState(location.hash.slice(1)||'inicio');
@@ -79,9 +79,28 @@ function App(){
    const header=document.querySelector('header');
    const nav=header?.querySelector('nav');
     if(!header||!nav)return;
+   header.classList.toggle('admin-header-menu-hidden',user?.rol==='admin');
    nav.classList.add('menu-dropdown');
+   nav.classList.toggle('admin-menu-active',user?.rol==='admin');
     nav.querySelectorAll('a[href="#inicio"],a[href="#tienda"]').forEach(link=>link.remove());
     nav.querySelectorAll('.menu-category-link').forEach(link=>link.remove());
+    nav.querySelectorAll('.menu-admin-link').forEach(link=>link.remove());
+    nav.querySelectorAll('.menu-control-link').forEach(link=>link.remove());
+    if(user?.rol==='admin'){
+     const control=document.createElement('a');
+     control.className='menu-control-link';
+     control.href='#admin';
+     control.textContent='Control';
+     nav.append(control);
+     [['productos','Productos'],['compras','Compras'],['proveedores','Proveedores'],['pedidos','Pedidos'],['clientes','Clientes'],['ventas','Ventas'],['envios','Envíos']].forEach(([seccion,nombre])=>{
+      const enlace=document.createElement('a');
+      enlace.className='menu-admin-link';
+      enlace.href='#admin';
+      enlace.textContent=nombre;
+      enlace.addEventListener('click',()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:seccion})));
+      nav.append(enlace);
+     });
+    }
     [...new Set([...categoriasDisponibles,...P.map(producto=>producto.c).filter(categoria=>categoria&&categoria!=='Sin categoría')])].forEach(categoria=>{
      const enlace=document.createElement('a');
      enlace.className='menu-category-link';
@@ -100,8 +119,8 @@ function App(){
    toggle.addEventListener('click',()=>{const abierto=nav.classList.toggle('open');toggle.setAttribute('aria-expanded',String(abierto));toggle.setAttribute('aria-label',abierto?'Cerrar menú':'Abrir menú')});
    nav.addEventListener('click',event=>{if(event.target.closest('a'))cerrar()});
    header.insertBefore(toggle,nav);
-    return()=>{toggle.remove();nav.removeEventListener('click',event=>{if(event.target.closest('a'))cerrar()});nav.classList.remove('menu-dropdown','open')};
-   },[productos]);
+    return()=>{toggle.remove();header.classList.remove('admin-header-menu-hidden');nav.removeEventListener('click',event=>{if(event.target.closest('a'))cerrar()});nav.classList.remove('menu-dropdown','open')};
+   },[productos,user]);
   useEffect(()=>{
    if(page!=='tienda')return;
    const titulo=[...document.querySelectorAll('main h2')].find(elemento=>elemento.textContent.trim()==='Tienda');
@@ -155,6 +174,17 @@ function App(){
  const filtered=P.filter(p=>(category==='Todo'||p.c===category)&&p.n.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>sort==='a'?a.p-b.p:sort==='d'?b.p-a.p:0);
  const go=(dest)=>{location.hash=dest;if(location.hash==='#'+page){setPage(dest)}};
  const auth=page==='ingresar'||(page==='cuenta'&&!user);
+ useEffect(()=>{const button=document.querySelector('button[aria-label="Mi cuenta"]');if(button)button.dataset.userName=user?displayName(user):'INICIAR SESIÓN'},[user]);
+ useEffect(()=>{
+  if(!auth||mode!=='in')return;
+  const form=document.querySelector('.form');
+  const campo=form?.querySelector('input[name="email"]');
+  if(!form||!campo)return;
+  campo.type='text';campo.name='identifier';campo.placeholder='Usuario o email';campo.autocomplete='username';const etiqueta=campo.previousElementSibling;if(etiqueta?.tagName==='LABEL')etiqueta.textContent='Usuario o email';
+  const submit=async event=>{event.preventDefault();event.stopImmediatePropagation();setError('');const identificador=String(campo.value||'').trim(),password=String(form.querySelector('input[name="password"]')?.value||'');if(!identificador)return setError('Ingresá tu usuario o email.');if(password.length<5)return setError('La contraseña necesita al menos 5 caracteres.');try{const sesion=await iniciarSesion({identifier:identificador,password});const usuario={...sesion.user,token:sesion.token};localStorage.setItem('u',JSON.stringify(usuario));setUser(usuario);setToast('Sesión iniciada');go(sesion.user.rol==='admin'?'admin':next||'cuenta')}catch(error){setError(error.message)}};
+  form.addEventListener('submit',submit,true);
+  return()=>form.removeEventListener('submit',submit,true);
+ },[auth,mode,next]);
   const login=async e=>{e.preventDefault();setError('');const f=new FormData(e.currentTarget),email=String(f.get('email')||'').trim(),password=String(f.get('password')||''),name=String(f.get('name')||'').trim();if(mode==='up'&&!name)return setError('Ingresá tu nombre.');if(!/^\S+@\S+\.\S+$/.test(email))return setError('Ingresá un email válido.');if(password.length<6)return setError('La contraseña necesita al menos 6 caracteres.');try{const sesion=mode==='up'?await registrarUsuario({name,email,password}):await iniciarSesion({email,password});const usuario={...sesion.user,token:sesion.token};localStorage.setItem('u',JSON.stringify(usuario));setUser(usuario);setToast(mode==='up'?'Cuenta creada':'Sesión iniciada');go(page==='pagar'?'pagar':sesion.user.rol==='admin'?'admin':next||'cuenta')}catch(error){setError(error.message)}};
   const checkout=async e=>{e.preventDefault();setError('');const f=new FormData(e.currentTarget);if(!['name','email','address','phone'].every(k=>String(f.get(k)||'').trim()))return setError('Completá nombre, email, dirección y teléfono para enviar tu pedido.');try{const pedido=await crearPedido({token:user?.token,name:f.get('name'),email:f.get('email'),address:f.get('address'),phone:f.get('phone'),payment:f.get('payment'),items:Object.entries(cart).map(([id,quantity])=>({id:Number(id),quantity}))});setOrders(o=>[{id:pedido.id,date:new Date(pedido.fecha||Date.now()).toLocaleDateString('es-UY'),items:count+' artículos',total:Number(pedido.total)},...o]);setCart({});go('exito')}catch(error){setError(error.message)}};
  const saveAdminProduct=async e=>{e.preventDefault();setAdminError('');try{await crearProductoAdmin(user.token,{...adminForm,precio:Number(adminForm.precio),stock:Number(adminForm.stock),categoria_id:adminForm.categoria_id?Number(adminForm.categoria_id):null});setAdminForm({nombre:'',descripcion:'',precio:'',stock:'',imagen:'',categoria_id:''});setToast('Producto creado');const datos=await obtenerProductos();if(Array.isArray(datos))setProductos(adaptarProductos(datos))}catch(error){setAdminError(error.message)}};
@@ -182,7 +212,7 @@ function AdminNav(){
  const [target,setTarget]=useState(null);
  useEffect(()=>{const refresh=()=>setUser(load('u',null));window.addEventListener('hashchange',refresh);window.addEventListener('storage',refresh);return()=>{window.removeEventListener('hashchange',refresh);window.removeEventListener('storage',refresh)}},[]);
  useEffect(()=>setTarget(document.querySelector('nav')),[]);
- if(user?.rol!=='admin'||!target)return null;
+ if(true)return null;
  return createPortal(<a href="#admin" className={location.hash==='#admin'?'on':''}>Control</a>,target);
 }
 
@@ -210,6 +240,54 @@ function AdminLogout(){
  if(user?.rol!=='admin'||!adminPage)return null;
  if(!target)return null;
  return createPortal(<button className="admin-logout btn o s" onClick={()=>{localStorage.removeItem('u');location.hash='inicio'}}>Cerrar sesión</button>,target);
+}
+
+function AdminSidebar(){
+ const [visible,setVisible]=useState(['admin','inicio'].includes(location.hash.slice(1)));
+ const [target,setTarget]=useState(null);
+ const [collapsed,setCollapsed]=useState(false);
+ const user=load('u',null);
+ const secciones=[['productos','Productos'],['compras','Compras'],['proveedores','Proveedores'],['pedidos','Pedidos'],['clientes','Clientes'],['ventas','Ventas'],['envios','Envíos']];
+ const iconos={
+  productos:<><path d="M4 8h16v12H4z"/><path d="M8 8V5h8v3M8 12h8M8 16h5"/></>,
+  compras:<><path d="M4 7h16v13H4z"/><path d="M7 7a5 5 0 0 1 10 0M8 12h8M8 16h5"/></>,
+  proveedores:<><circle cx="9" cy="8" r="3"/><path d="M3 19c.8-3 3-5 6-5s5.2 2 6 5M16 11h5M18.5 8.5v5"/></>,
+  pedidos:<><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h6M8 17h4"/></>,
+  clientes:<><circle cx="12" cy="8" r="3"/><path d="M5 20c1-4 3.5-6 7-6s6 2 7 6"/></>,
+  ventas:<><path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></>,
+  envios:<><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></>
+ };
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const goToAdmin=event=>{if(location.hash.slice(1)!=='admin'){location.hash='admin';window.setTimeout(()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:event.detail})),0)}};window.addEventListener('admin-section',goToAdmin);return()=>window.removeEventListener('admin-section',goToAdmin)},[]);
+ useEffect(()=>{const normalizar=texto=>String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const activar=event=>{document.querySelectorAll('.admin-sidebar-button').forEach(button=>button.classList.toggle('is-active',normalizar(button.textContent)===normalizar(event.detail)||button.dataset.section===event.detail))};window.addEventListener('admin-section',activar);if(location.hash.slice(1)==='admin')window.setTimeout(()=>activar({detail:'productos'}),0);return()=>window.removeEventListener('admin-section',activar)},[]);
+ useEffect(()=>{
+  if(!visible){setTarget(null);return}
+  const find=()=>{const node=document.body;if(node){setTarget(node);return true}return false};
+  if(find())return;
+  const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
+  return()=>observer.disconnect();
+ },[visible]);
+ if(user?.rol!=='admin'||!visible||!target)return null;
+ return createPortal(<aside className="admin-sidebar" aria-label="Control de administración"><div className="admin-sidebar-brand"><span className="admin-sidebar-mark">A</span><h2>Control</h2></div>{secciones.map(([id,nombre])=><button key={id} type="button" className="admin-sidebar-button" onClick={()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:id}))}><svg viewBox="0 0 24 24" aria-hidden="true">{iconos[id]}</svg><span>{nombre}</span></button>)}</aside>,target);
+}
+
+function AdminSidebarToggle(){
+ const [visible,setVisible]=useState(['admin','inicio'].includes(location.hash.slice(1)));
+ const [target,setTarget]=useState(null);
+ const [collapsed,setCollapsed]=useState(true);
+ const user=load('u',null);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{
+  if(!visible){setTarget(null);return}
+  const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
+  if(find())return;
+  const observer=new MutationObserver(find);observer.observe(document.body,{childList:true,subtree:true});
+  return()=>observer.disconnect();
+ },[visible]);
+ useEffect(()=>{if(target)target.classList.toggle('is-collapsed',collapsed)},[target,collapsed]);
+ useEffect(()=>{if(collapsed||!target)return;const cerrar=event=>{if(!target.contains(event.target))setCollapsed(true)};document.addEventListener('pointerdown',cerrar);return()=>document.removeEventListener('pointerdown',cerrar)},[collapsed,target]);
+ if(user?.rol!=='admin'||!visible||!target)return null;
+ return createPortal(<button type="button" className="admin-sidebar-toggle" aria-label={collapsed?'Abrir menú de control':'Cerrar menú de control'} aria-expanded={!collapsed} onClick={()=>setCollapsed(actual=>!actual)}><span className="admin-sidebar-mark">A</span><span className="admin-sidebar-toggle-label">CONTROL</span><span className="admin-sidebar-hamburger" aria-hidden="true"><i></i><i></i><i></i></span></button>,target);
 }
 
 function AdminApp(){
@@ -240,7 +318,14 @@ function AdminApp(){
   window.addEventListener('factura-compra-subida',sincronizarFactura);
   return()=>window.removeEventListener('factura-compra-subida',sincronizarFactura);
  },[]);
+ useEffect(()=>{
+  const cambiarSeccion=event=>{if(['productos','compras','proveedores','pedidos','clientes','ventas','envios'].includes(event.detail))setSeccion(event.detail)};
+  window.addEventListener('admin-section',cambiarSeccion);
+  return()=>window.removeEventListener('admin-section',cambiarSeccion);
+ },[]);
  useEffect(()=>{const change=()=>setVisible(location.hash.slice(1)==='admin');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const moverBotones=()=>{const vistos=new Set();document.querySelectorAll('.add-provider-button,.add-purchase-button').forEach(boton=>{const esProveedor=boton.classList.contains('add-provider-button');const tipo=esProveedor?'proveedores':'compras';if(vistos.has(tipo)){boton.remove();return}vistos.add(tipo);const corresponde=esProveedor?seccion==='proveedores':seccion==='compras';boton.hidden=!corresponde;const panel=boton.closest('.admin-providers,.admin-purchases');if(panel?.parentElement&&boton.parentElement===panel)panel.parentElement.insertBefore(boton,panel)})};moverBotones();const observer=new MutationObserver(moverBotones);observer.observe(document.body,{childList:true,subtree:true});return()=>observer.disconnect()},[visible,seccion,proveedores.length,compras.length]);
+ useEffect(()=>{if(!visible||user?.rol!=='admin')return;let frame=0;const ajustarBotones=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{document.querySelectorAll('.add-product-button,.add-provider-button,.add-purchase-button').forEach(boton=>{if(boton.hidden)return;const parent=boton.parentElement;const panel=parent?.querySelector('.box')||boton.closest('.admin-providers,.admin-purchases');if(!parent||!panel)return;const parentStyles=getComputedStyle(parent);const inicioContenido=parent.getBoundingClientRect().left+parseFloat(parentStyles.paddingLeft||'0');const rect=panel.getBoundingClientRect();boton.style.width=rect.width+'px';boton.style.maxWidth='none';boton.style.marginLeft=Math.max(0,rect.left-inicioContenido)+'px';boton.style.marginRight='0px'})})};ajustarBotones();const observer=new MutationObserver(ajustarBotones);observer.observe(document.body,{childList:true,subtree:true});const resizeObserver=new ResizeObserver(ajustarBotones);document.querySelectorAll('.admin-screen,.admin-products>.box,.admin-providers,.admin-purchases').forEach(elemento=>resizeObserver.observe(elemento));return()=>{cancelAnimationFrame(frame);observer.disconnect();resizeObserver.disconnect()}},[visible,seccion,user?.rol,productosAdmin.length,proveedores.length,compras.length]);
  useEffect(()=>setTarget(document.querySelector('#admin-host')),[visible]);
  useEffect(()=>{
   return; /*
@@ -413,7 +498,7 @@ function AdminApp(){
     const encabezadoFinal=panel.querySelector('.purchase-grid-head');
     if(encabezadoFinal&&encabezadoFinal.children.length>=10){const productosEncabezado=encabezadoFinal.children[9];const facturaEncabezado=encabezadoFinal.children[7];const accionesEncabezado=encabezadoFinal.children[8];encabezadoFinal.append(productosEncabezado,facturaEncabezado,accionesEncabezado);panel.querySelectorAll('.purchase-grid-row').forEach(fila=>{if(fila.children.length>=10)fila.append(fila.children[9],fila.children[7],fila.children[8])})}
     pantalla.append(panel);
-  return()=>panel.remove();
+  return()=>{panel.remove();botonAgregar.remove()};
  },[visible,seccion,proveedores]);
   useEffect(()=>{
    if(!visible||seccion!=='proveedores')return;
@@ -454,7 +539,7 @@ function AdminApp(){
    panel.querySelectorAll('.purchase-grid-row').forEach((fila,index)=>{const compra=compras[index];const boton=[...fila.querySelectorAll('.admin-actions button')].find(item=>item.textContent==='Editar');if(!boton)return;const editar=document.createElement('button');editar.type='button';editar.className='btn s';editar.textContent='Editar';editar.addEventListener('click',()=>{const fondo=document.createElement('div');fondo.className='modal-backdrop';const opciones=proveedores.map(proveedor=>'<option value="'+proveedor.id_proveedor+'">'+(proveedor.nombre||'Proveedor sin nombre')+'</option>').join('');fondo.innerHTML='<div class="product-modal provider-modal" role="dialog" aria-modal="true" aria-labelledby="edit-purchase-title"><button type="button" class="modal-close" aria-label="Cerrar">×</button><form class="product-edit-form"><h3 id="edit-purchase-title">Editar compra</h3><label>Proveedor<select name="id_proveedor" required>'+opciones+'</select></label><div class="product-edit-fields"><label>Fecha<input name="fecha_compra" type="date" required></label><label>Número de factura<input name="numero_factura"></label><label>Total<input name="total" type="number" min="0" step="0.01" required></label><label>Costo de envío<input name="costo_envio" type="number" min="0" step="0.01"></label></div><label>Canal de compra<input name="canal_compra"></label><label>Método de entrega<input name="metodo_entrega"></label><label>Fecha de entrega estimada<input name="fecha_entrega_estimada" type="date"></label><div class="product-edit-fields"><label>Estado<select name="estado"><option value="pendiente">Pendiente</option><option value="en_curso">En curso</option><option value="recibida">Recibida</option><option value="cancelada">Cancelada</option></select></label><label>Estado del pago<select name="estado_pago"><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="parcial">Parcial</option></select></label></div><label>Observaciones<textarea name="observaciones"></textarea></label><p class="err purchase-form-error"></p><div class="admin-actions"><button class="btn s" type="submit">Guardar cambios</button><button class="btn o s" type="button" data-cancelar>Cancelar</button></div></form></div>';const formulario=fondo.querySelector('form');const valor=(nombre,defecto='')=>{const campo=formulario.elements[nombre];const valorInicial=defecto??'';campo.value=valorInicial;if(campo.tagName==='SELECT'&&campo.value!==String(valorInicial)){const normalizado=String(valorInicial).trim().toLowerCase();const opcion=[...campo.options].find(item=>item.value.toLowerCase()===normalizado);campo.value=opcion?.value||'';}};valor('id_proveedor',compra.id_proveedor);valor('fecha_compra',String(compra.fecha_compra||'').slice(0,10));valor('numero_factura',compra.numero_factura);valor('total',compra.total);valor('costo_envio',compra.costo_envio);valor('canal_compra',compra.canal_compra);valor('metodo_entrega',compra.metodo_entrega);valor('fecha_entrega_estimada',String(compra.fecha_entrega_estimada||'').slice(0,10));valor('estado',compra.estado);valor('estado_pago',compra.estado_pago);valor('observaciones',compra.observaciones);const cerrar=()=>fondo.remove();fondo.addEventListener('click',event=>{if(event.target===fondo)cerrar()});fondo.querySelector('.modal-close').addEventListener('click',cerrar);fondo.querySelector('[data-cancelar]').addEventListener('click',cerrar);formulario.addEventListener('submit',async event=>{event.preventDefault();const errorFormulario=formulario.querySelector('.purchase-form-error');errorFormulario.textContent='';try{await actualizarCompraAdmin(user?.token,compra.id_compra,Object.fromEntries(new FormData(formulario).entries()));cerrar();await cargar()}catch(error){errorFormulario.textContent=error.message}});document.body.append(fondo);formulario.elements.id_proveedor.focus()});boton.replaceWith(editar)});
    if(encabezado&&encabezado.children.length===10){const ordenColumnas=['Proveedor','Fecha','Canal','Entrega','Pago','Productos','Factura','Estado','Total','Acciones'];const celdasEncabezado=[...encabezado.children];const indicePorNombre=new Map(celdasEncabezado.map((celda,indice)=>[celda.textContent.trim(),indice]));const indices=ordenColumnas.map(nombre=>indicePorNombre.get(nombre)).filter(indice=>indice!==undefined);encabezado.append(...indices.map(indice=>celdasEncabezado[indice]));panel.querySelectorAll('.purchase-grid-row').forEach(fila=>{const celdas=[...fila.children];fila.append(...indices.map(indice=>celdas[indice]))})}
    pantalla.append(panel);
-   return()=>panel.remove();
+   return()=>{panel.remove();botonAgregar.remove()};
    },[visible,seccion,compras]);
   useEffect(()=>{
    if(!visible||seccion!=='compras')return;
@@ -721,4 +806,4 @@ class AppErrorBoundary extends React.Component{
  static getDerivedStateFromError(error){return {error}};
  render(){return this.state.error?<main className="wrap empty"><h2>Ocurrió un error inesperado</h2><p>Recargá la página para intentar nuevamente.</p><button className="btn" onClick={()=>location.reload()}>Recargar</button></main>:this.props.children}
 }
-createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/></></AppErrorBoundary>);
+createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminSidebar/><AdminSidebarToggle/></></AppErrorBoundary>);

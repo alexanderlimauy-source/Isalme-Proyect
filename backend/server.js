@@ -276,18 +276,21 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 app.post("/api/auth/login", async (req, res) => {
-  const email = String(req.body?.email || "").trim().toLowerCase();
+  const identificador = String(req.body?.identifier ?? req.body?.email ?? "").trim().toLowerCase();
   const password = String(req.body?.password || "");
 
   try {
     const resultado = await pool.query(
       `SELECT id, nombre, email, rol, password_hash
-       FROM usuarios WHERE LOWER(email) = $1 LIMIT 1`,
-      [email]
+       FROM usuarios
+       WHERE LOWER(email) = $1 OR LOWER(nombre) = $1
+       ORDER BY (LOWER(email) = $1) DESC, (rol = 'admin') DESC, id DESC
+       LIMIT 1`,
+      [identificador]
     );
     const usuario = resultado.rows[0];
     if (!usuario || !verifyPassword(password, usuario.password_hash)) {
-      return res.status(401).json({ error: "Email o contraseña incorrectos" });
+      return res.status(401).json({ error: "Usuario, email o contraseña incorrectos" });
     }
     const { password_hash, ...user } = usuario;
     res.json({ user, token: signToken({ id: user.id, email: user.email, rol: user.rol }) });

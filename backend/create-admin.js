@@ -17,7 +17,7 @@ async function main() {
   const email = (await ask("Email del administrador: ")).trim().toLowerCase();
   const password = await ask("Contraseña (mínimo 6 caracteres): ");
 
-  if (!nombre || !/^\S+@\S+\.\S+$/.test(email) || password.length < 6) {
+  if (!nombre || !/^\S+@\S+\.\S+$/.test(email) || password.length < 5) {
     throw new Error("Los datos no son válidos");
   }
 
