@@ -165,6 +165,137 @@ const ensureProductImagesTable = async () => {
   `);
 };
 
+const ensureShipmentsTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS envios (
+      id SERIAL PRIMARY KEY,
+      pedido_id INTEGER NOT NULL UNIQUE REFERENCES pedidos(id) ON DELETE CASCADE,
+      departamento_id INTEGER REFERENCES departamentos(id),
+      localidad_id INTEGER REFERENCES localidades(id),
+      departamento TEXT,
+      ciudad TEXT,
+      calle TEXT,
+      numero_puerta TEXT,
+      apartamento TEXT,
+      direccion_completa TEXT NOT NULL,
+      codigo_postal TEXT,
+      latitud NUMERIC(10, 7),
+      longitud NUMERIC(10, 7),
+      estado_envio TEXT NOT NULL DEFAULT 'pendiente',
+      empresa TEXT,
+      numero_seguimiento TEXT,
+      fecha_envio TIMESTAMPTZ,
+      fecha_entrega TIMESTAMPTZ,
+      observaciones TEXT,
+      fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query(`ALTER TABLE envios ADD COLUMN IF NOT EXISTS departamento_id INTEGER REFERENCES departamentos(id)`);
+  await pool.query(`ALTER TABLE envios ADD COLUMN IF NOT EXISTS localidad_id INTEGER REFERENCES localidades(id)`);
+  await pool.query(`ALTER TABLE envios ADD COLUMN IF NOT EXISTS apartamento TEXT`);
+  await pool.query(`
+    INSERT INTO envios (pedido_id, direccion_completa, estado_envio)
+    SELECT p.id, p.direccion, 'pendiente'
+    FROM pedidos p
+    WHERE NOT EXISTS (SELECT 1 FROM envios e WHERE e.pedido_id = p.id)
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_envios_estado ON envios (estado_envio)`);
+};
+
+const ensureDepartmentsTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS departamentos (
+      id INTEGER PRIMARY KEY,
+      nombre TEXT NOT NULL UNIQUE
+    )
+  `);
+  await pool.query(`
+    INSERT INTO departamentos (id, nombre) VALUES
+      (1, 'MONTEVIDEO'),
+      (2, 'ARTIGAS'),
+      (3, 'CANELONES'),
+      (4, 'CERRO LARGO'),
+      (5, 'COLONIA'),
+      (6, 'DURAZNO'),
+      (7, 'FLORES'),
+      (8, 'FLORIDA'),
+      (9, 'LAVALLEJA'),
+      (10, 'MALDONADO'),
+      (11, 'PAYSANDU'),
+      (12, 'RIO NEGRO'),
+      (13, 'RIVERA'),
+      (14, 'ROCHA'),
+      (15, 'SALTO'),
+      (16, 'SAN JOSE'),
+      (17, 'SORIANO'),
+      (18, 'TACUAREMBO'),
+      (19, 'TREINTA Y TRES')
+    ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre
+  `);
+};
+
+const ensureLocalitiesTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS localidades (
+      id SERIAL PRIMARY KEY,
+      departamento_id INTEGER NOT NULL REFERENCES departamentos(id) ON DELETE RESTRICT,
+      nombre TEXT NOT NULL,
+      codigo_postal TEXT,
+      activo BOOLEAN NOT NULL DEFAULT TRUE,
+      UNIQUE (departamento_id, nombre)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_localidades_departamento_id
+      ON localidades (departamento_id, nombre)
+  `);
+  // Las localidades se cargan con backend/seed-localities.js y quedan persistidas en la base.
+  return;
+  const cerroLargo = [
+    ['ACEGUA', 37000], ['ARACHANIA', 37000], ['ARBOLITO', 37000], ['AREVALO', 37000],
+    ['BAÑADO DE MEDINA', 37000], ['BARRIO LOPEZ BENITEZ', 37000], ['CASARONE', 37100],
+    ['CASERIO LAS CAÑAS', 37000], ['CENTURION', 37000], ['CERRO DE LAS CUENTAS', 36200],
+    ['CERRO LARGO RURAL', 0], ['ESPERANZA', 35300], ['FRAILE MUERTO', 36200],
+    ['GETULIO VARGAS', 37100], ['ISIDORO NOBLIA', 37000], ['LAGO MERIN', 37100],
+    ['LA MICAELA', 37000], ['LA PEDRERA', 37000], ['MANGRULLO', 37000], ['MELO', 37000],
+    ['NANDO', 37000], ['ÑANGAPIRE', 37000], ['PLACIDO ROSAS', 37100],
+    ['POBLADO URUGUAY', 37100], ['QUEBRACHO', 36200], ['RAMON TRIGO', 37000],
+    ['RIO BRANCO', 37100], ['SOTO GORO', 37000], ['TOLEDO', 36200], ['TRES ISLAS', 36200],
+    ['TUPAMBAE', 36100]
+  ];
+  for (const [nombre, codigoPostal] of cerroLargo) {
+    await pool.query(
+      `INSERT INTO localidades (departamento_id, nombre, codigo_postal)
+       VALUES (4, $1, $2)
+       ON CONFLICT (departamento_id, nombre)
+       DO UPDATE SET codigo_postal = EXCLUDED.codigo_postal, activo = TRUE`,
+      [nombre, String(codigoPostal)]
+    );
+  }
+  const localidadesCargadas = await pool.query('SELECT COUNT(*)::int AS total FROM localidades');
+  if (localidadesCargadas.rows[0].total > cerroLargo.length) return;
+  const departamentos = await pool.query('SELECT id, nombre FROM departamentos ORDER BY id');
+  for (const departamento of departamentos.rows) {
+    try {
+      const respuesta = await fetch(`https://direcciones.ide.uy/api/v0/geocode/localidades?departamento=${encodeURIComponent(departamento.nombre)}&alias=true`);
+      if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+      const localidades = await respuesta.json();
+      for (const localidad of localidades) {
+        await pool.query(
+          `INSERT INTO localidades (departamento_id, nombre, codigo_postal)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (departamento_id, nombre)
+           DO UPDATE SET codigo_postal = EXCLUDED.codigo_postal, activo = TRUE`,
+          [departamento.id, localidad.nombre, localidad.codigoPostal ? String(localidad.codigoPostal) : null]
+        );
+      }
+      console.log(`Localidades cargadas para ${departamento.nombre}: ${localidades.length}`);
+    } catch (error) {
+      console.warn(`No se pudieron cargar las localidades de ${departamento.nombre}: ${error.message}`);
+    }
+  }
+};
+
 const ensureCategoryNames = async () => {
   await pool.query(`
     UPDATE categorias
@@ -318,11 +449,18 @@ app.post("/api/pedidos", optionalAuth, async (req, res) => {
   const nombre = String(req.body?.name || "").trim();
   const email = String(req.body?.email || "").trim().toLowerCase();
   const telefono = String(req.body?.phone || "").trim();
-  const direccion = String(req.body?.address || "").trim();
+  const tipoEntrega = req.body?.deliveryType === "retiro" ? "retiro" : "envio";
+  const departamentoId = Number(req.body?.departmentId);
+  const localidadId = Number(req.body?.localityId);
+  const calle = String(req.body?.street || req.body?.address || "").trim();
+  const numeroPuerta = String(req.body?.door || "").trim();
+  const apartamento = String(req.body?.apartment || "").trim();
+  const observacionesEnvio = String(req.body?.addressExtra || "").trim();
+  const direccion = tipoEntrega === "retiro" ? "Retiro en local" : [calle, numeroPuerta, apartamento ? `AP ${apartamento}` : ""].filter(Boolean).join(" ");
   const metodoPago = String(req.body?.payment || "").trim();
   const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
-  if (!nombre || !/^\S+@\S+\.\S+$/.test(email) || !telefono || !direccion || !items.length) {
+  if (!nombre || !/^\S+@\S+\.\S+$/.test(email) || !telefono || !direccion || !items.length || (req.body?.deliveryType === "envio" && (!Number.isInteger(departamentoId) || !Number.isInteger(localidadId) || !calle || !numeroPuerta))) {
     return res.status(400).json({ error: "Faltan datos del cliente o del pedido" });
   }
 
@@ -357,11 +495,17 @@ app.post("/api/pedidos", optionalAuth, async (req, res) => {
 
     const pedido = await client.query(
       `INSERT INTO pedidos (usuario_id, nombre_cliente, email_cliente, telefono, direccion, tipo_entrega, estado, total)
-       VALUES ($1, $2, $3, $4, $5, 'envio', 'pendiente', $6)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pendiente', $7)
        RETURNING id, fecha, total, estado`,
-      [userId, nombre, email, telefono, direccion, total]
+      [userId, nombre, email, telefono, direccion, tipoEntrega, total]
     );
     const pedidoId = pedido.rows[0].id;
+
+    await client.query(
+      `INSERT INTO envios (pedido_id, departamento_id, localidad_id, calle, numero_puerta, apartamento, direccion_completa, estado_envio, observaciones)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendiente', $8)`,
+      [pedidoId, tipoEntrega === "envio" ? departamentoId : null, tipoEntrega === "envio" ? localidadId : null, tipoEntrega === "envio" ? calle : null, tipoEntrega === "envio" ? numeroPuerta : null, tipoEntrega === "envio" ? apartamento || null : null, direccion, observacionesEnvio || null]
+    );
 
     for (const producto of productos.rows) {
       const cantidad = cantidades.get(producto.id);
@@ -425,6 +569,71 @@ app.get("/api/admin/clientes", requireAuth, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error al consultar clientes:", error.message);
     res.status(500).json({ error: "No se pudieron cargar los clientes" });
+  }
+});
+
+app.get("/api/admin/departamentos", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query("SELECT id, nombre FROM departamentos ORDER BY id");
+    res.json(resultado.rows);
+  } catch (error) {
+    res.status(500).json({ error: "No se pudieron cargar los departamentos" });
+  }
+});
+
+app.get("/api/admin/localidades", requireAuth, requireAdmin, async (req, res) => {
+  const departamentoId = Number(req.query.departamento_id);
+  if (!Number.isInteger(departamentoId)) return res.status(400).json({ error: "Departamento inválido" });
+  try {
+    const resultado = await pool.query(
+      "SELECT id, nombre, codigo_postal FROM localidades WHERE departamento_id = $1 AND activo = TRUE ORDER BY nombre",
+      [departamentoId]
+    );
+    res.json(resultado.rows);
+  } catch (error) {
+    res.status(500).json({ error: "No se pudieron cargar las localidades" });
+  }
+});
+
+app.get("/api/admin/pedidos", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT pe.id, pe.usuario_id, pe.nombre_cliente, pe.email_cliente, pe.telefono,
+             pe.direccion, pe.tipo_entrega, pe.estado, pe.total, pe.fecha,
+             en.id AS envio_id, en.departamento, en.ciudad, en.calle,
+             en.numero_puerta, en.apartamento, en.direccion_completa, en.codigo_postal,
+             en.latitud, en.longitud, en.estado_envio, en.empresa,
+             en.numero_seguimiento, en.fecha_envio, en.fecha_entrega,
+             en.observaciones AS observaciones_envio,
+             COALESCE(pa.metodo, 'pendiente') AS metodo_pago,
+             COALESCE(pa.estado, 'pendiente') AS estado_pago,
+             COALESCE((
+               SELECT json_agg(json_build_object(
+                 'id', d.id,
+                 'producto_id', d.producto_id,
+                 'nombre', pr.nombre,
+                 'cantidad', d.cantidad,
+                 'precio_unitario', d.precio_unitario
+               ) ORDER BY d.id)
+               FROM pedido_detalles d
+               LEFT JOIN productos pr ON pr.id = d.producto_id
+               WHERE d.pedido_id = pe.id
+             ), '[]'::json) AS productos
+      FROM pedidos pe
+      LEFT JOIN envios en ON en.pedido_id = pe.id
+      LEFT JOIN LATERAL (
+        SELECT metodo, estado
+        FROM pagos
+        WHERE pedido_id = pe.id
+        ORDER BY fecha DESC NULLS LAST, id DESC
+        LIMIT 1
+      ) pa ON TRUE
+      ORDER BY pe.fecha DESC NULLS LAST, pe.id DESC
+    `);
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar pedidos administrativos:", error.message);
+    res.status(500).json({ error: "No se pudieron cargar los pedidos" });
   }
 });
 
@@ -1104,6 +1313,9 @@ app.get("/api/productos", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 ensureProductImagesTable()
+  .then(ensureDepartmentsTable)
+  .then(ensureLocalitiesTable)
+  .then(ensureShipmentsTable)
   .then(ensureCategoryNames)
   .then(ensurePurchaseChannelConstraint)
   .then(() => {

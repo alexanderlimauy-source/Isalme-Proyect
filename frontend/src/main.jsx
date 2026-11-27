@@ -1,4 +1,5 @@
 import { obtenerProductos, iniciarSesion, registrarUsuario, crearPedido, obtenerResumenAdmin, obtenerClientesAdmin, obtenerProveedoresAdmin, obtenerComprasAdmin, crearCompraAdmin, actualizarCompraAdmin, actualizarProductoCompraAdmin, borrarCompraAdmin, subirFacturaCompraAdmin, borrarFacturaCompraAdmin, crearProveedorAdmin, actualizarProveedorAdmin, cambiarEstadoProveedorAdmin, obtenerProductosAdmin, crearProductoAdmin, actualizarProductoAdmin, actualizarImagenesProductoAdmin, cambiarEstadoProductoAdmin, borrarProductoAdmin, subirImagenesProductoAdmin } from "./services/api";
+import { obtenerPedidosAdmin, obtenerDepartamentosAdmin, obtenerLocalidadesAdmin, obtenerSugerenciasDireccion } from "./services/api";
 import React,{useEffect,useState} from 'react';
 import{createRoot}from'react-dom/client';
 import{createPortal}from'react-dom';
@@ -262,7 +263,7 @@ function AdminSidebar(){
   ventas:<><path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></>,
   envios:<><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></>
  };
- useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda'].includes(location.hash.slice(1)));change();window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{const goToAdmin=event=>{if(location.hash.slice(1)!=='admin'){location.hash='admin';window.setTimeout(()=>window.dispatchEvent(new CustomEvent('admin-section',{detail:event.detail})),0)}};window.addEventListener('admin-section',goToAdmin);return()=>window.removeEventListener('admin-section',goToAdmin)},[]);
  useEffect(()=>{const normalizar=texto=>String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const activar=event=>{document.querySelectorAll('.admin-sidebar-button').forEach(button=>button.classList.toggle('is-active',normalizar(button.textContent)===normalizar(event.detail)||button.dataset.section===event.detail))};window.addEventListener('admin-section',activar);return()=>window.removeEventListener('admin-section',activar)},[]);
  useEffect(()=>{
@@ -279,9 +280,9 @@ function AdminSidebar(){
 function UserSidebar(){
  const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
- const user=load('u',null);
+ const [user,setUser]=useState(()=>load('u',null));
  const categorias=categoriasDisponibles.map((nombre,indice)=>[String(indice),nombre]);
- useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const change=()=>{setVisible(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));setUser(load('u',null))};change();window.addEventListener('hashchange',change);window.addEventListener('storage',change);return()=>{window.removeEventListener('hashchange',change);window.removeEventListener('storage',change)}},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.body;if(node){setTarget(node);return true}return false};
@@ -298,8 +299,8 @@ function UserSidebar(){
 function BrandSidebarButton(){
  const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
- const user=load('u',null);
- useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ const [user,setUser]=useState(()=>load('u',null));
+ useEffect(()=>{const change=()=>{setVisible(['admin','inicio','tienda','ingresar','by-isalme'].includes(location.hash.slice(1)));setUser(load('u',null))};change();window.addEventListener('hashchange',change);window.addEventListener('storage',change);return()=>{window.removeEventListener('hashchange',change);window.removeEventListener('storage',change)}},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
@@ -315,7 +316,7 @@ function AdminStoreButton(){
  const [visible,setVisible]=useState(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));
  const [target,setTarget]=useState(null);
  const user=load('u',null);
- useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
+ useEffect(()=>{const change=()=>setVisible(['admin','inicio','tienda','ingresar'].includes(location.hash.slice(1)));change();window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{
   if(!visible){setTarget(null);return}
   const find=()=>{const node=document.querySelector('.admin-sidebar');if(node){setTarget(node);return true}return false};
@@ -341,16 +342,166 @@ function AdminSidebarToggle(){
   return()=>observer.disconnect();
  },[visible]);
  useEffect(()=>{if(target)target.classList.toggle('is-collapsed',collapsed)},[target,collapsed]);
- useEffect(()=>{setCollapsed(true);const cambiar=event=>setCollapsed(!event.detail);window.addEventListener('sidebar-hover',cambiar);return()=>window.removeEventListener('sidebar-hover',cambiar)},[user?.rol]);
+ useEffect(()=>{
+  setCollapsed(true);
+  let cierrePendiente;
+  const cambiar=event=>{
+   if(event.detail){clearTimeout(cierrePendiente);return}
+   clearTimeout(cierrePendiente);
+   cierrePendiente=setTimeout(()=>{if(target&&!target.matches(':hover'))setCollapsed(true)},150);
+  };
+  window.addEventListener('sidebar-hover',cambiar);
+  return()=>{clearTimeout(cierrePendiente);window.removeEventListener('sidebar-hover',cambiar)};
+ },[user?.rol,target]);
  useEffect(()=>{if(collapsed||!target)return;const cerrar=event=>{if(!target.contains(event.target))setCollapsed(true)};document.addEventListener('pointerdown',cerrar);return()=>document.removeEventListener('pointerdown',cerrar)},[collapsed,target]);
   if(!visible||!target)return null;
  return createPortal(<button type="button" className="admin-sidebar-toggle" aria-label={collapsed?'Abrir menú':'Cerrar menú'} aria-expanded={!collapsed} onClick={()=>setCollapsed(actual=>!actual)}><span className="admin-sidebar-mark">A</span><span className="admin-sidebar-toggle-label">Menú</span><span className="admin-sidebar-hamburger" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></span></button>,target);
 }
 
+function AdminOrdersGrid(){
+ const [active,setActive]=useState(false),[target,setTarget]=useState(null),[pedidos,setPedidos]=useState([]),[productos,setProductos]=useState([]),[departamentos,setDepartamentos]=useState([]),[localidades,setLocalidades]=useState([]),[modal,setModal]=useState(false),[error,setError]=useState('');
+ const [form,setForm]=useState({name:'',email:'',phone:'',address:'',productId:'',quantity:'1',payment:'pendiente'});
+ const user=load('u',null);
+ useEffect(()=>{
+  const sync=()=>setActive(location.hash.slice(1)==='admin'&&document.querySelector('#admin-section')?.value==='pedidos');
+  sync();
+  const sectionChange=event=>setActive(location.hash.slice(1)==='admin'&&event.detail==='pedidos');
+  document.addEventListener('change',sync);
+  window.addEventListener('admin-section',sectionChange);
+  window.addEventListener('hashchange',sync);
+  const observer=new MutationObserver(()=>{sync();const node=document.querySelector('.admin-screen');if(node)setTarget(node)});
+  observer.observe(document.body,{childList:true,subtree:true});
+  return()=>{document.removeEventListener('change',sync);window.removeEventListener('hashchange',sync);window.removeEventListener('admin-section',sectionChange);observer.disconnect()};
+ },[]);
+ useEffect(()=>{
+  if(!active||user?.rol!=='admin'||!user?.token){setTarget(null);return}
+  const node=document.querySelector('.admin-screen');
+  if(node)setTarget(node);
+  Promise.all([obtenerPedidosAdmin(user.token),obtenerProductosAdmin(user.token),obtenerDepartamentosAdmin(user.token)]).then(([orders,products,departments])=>{setPedidos(orders);setProductos(products.filter(product=>Number(product.stock)>0&&product.activo!==false));setDepartamentos(departments)}).catch(error=>setError(error.message));
+ },[active,user?.rol,user?.token]);
+ useEffect(()=>{
+  const placeholder=[...document.querySelectorAll('.admin-screen .admin-section-card')].find(node=>node.querySelector('h2')?.textContent.trim()==='Pedidos');
+  if(placeholder)placeholder.hidden=active;
+  return()=>{if(placeholder)placeholder.hidden=false};
+ },[active]);
+ useEffect(()=>{
+  if(!active||!target)return;
+  const abrir=()=>{
+   const fondo=document.createElement('div');
+   fondo.className='modal-backdrop';
+   fondo.innerHTML='<div class="product-modal order-modal" role="dialog" aria-modal="true" aria-labelledby="add-order-title"><button type="button" class="modal-close" aria-label="Cerrar">×</button><form class="product-edit-form"><h3 id="add-order-title">Agregar pedido</h3><label>Nombre del cliente<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Teléfono<input name="phone" required></label><label>Dirección<input name="address" required></label><label>Producto<select name="productId" required><option value="">Seleccionar producto</option>'+productos.map(producto=>'<option value="'+producto.id+'">'+producto.nombre+' — stock: '+producto.stock+'</option>').join('')+'</select></label><label>Cantidad<input name="quantity" type="number" min="1" value="1" required></label><label>Medio de pago<select name="payment"><option value="pendiente">Pendiente</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="mercado_pago">Mercado Pago</option></select></label><p class="err order-form-error"></p><div class="admin-actions"><button class="btn s" type="submit">Guardar pedido</button><button class="btn o s" type="button" data-cancelar>Cancelar</button></div></form></div>';
+   const cerrar=()=>fondo.remove();
+   fondo.addEventListener('click',event=>{if(event.target===fondo)cerrar()});
+   fondo.querySelector('.modal-close').addEventListener('click',cerrar);
+   fondo.querySelector('[data-cancelar]').addEventListener('click',cerrar);
+   const formulario=fondo.querySelector('form');
+   const direccionOriginal=formulario.querySelector('input[name="address"]')?.closest('label');
+   const tipoEntrega=document.createElement('label');
+   tipoEntrega.textContent='Tipo de entrega';
+   tipoEntrega.innerHTML+='<select name="deliveryType"><option value="envio">Envío</option><option value="retiro">Retiro</option></select>';
+   formulario.insertBefore(tipoEntrega,direccionOriginal);
+   const envioBloque=document.createElement('div');
+   envioBloque.className='shipping-fields';
+   envioBloque.innerHTML='<label>Departamento<select name="departmentId" required><option value="">Seleccionar departamento</option>'+departamentos.map(departamento=>'<option value="'+departamento.id+'">'+departamento.nombre+'</option>').join('')+'</select></label><label>Localidad<select name="localityId" required disabled><option value="">Seleccionar localidad</option></select></label><label>Dirección<input name="street" required></label><div class="address-number-fields"><label>Número<input name="door" required></label><label>AP<input name="apartment"></label></div><label>Complemento / referencias<textarea name="addressExtra"></textarea></label>';
+   formulario.insertBefore(envioBloque,direccionOriginal);
+   const inputDireccion=direccionOriginal?.querySelector('input[name="address"]');
+   if(direccionOriginal) direccionOriginal.hidden=true;
+   if(inputDireccion) inputDireccion.required=false;
+   const selectorEntrega=tipoEntrega.querySelector('select');
+   const selectorDepartamento=envioBloque.querySelector('select[name="departmentId"]');
+   const selectorLocalidad=envioBloque.querySelector('select[name="localityId"]');
+   const inputCalle=envioBloque.querySelector('input[name="street"]');
+   const labelCalle=inputCalle.closest('label');
+   const sugerencias=document.createElement('div');
+   sugerencias.className='address-suggestions';
+   sugerencias.hidden=true;
+   labelCalle.append(sugerencias);
+   const normalizarTexto=texto=>String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+   const contieneTerminosBuscados=(calle,texto)=>normalizarTexto(texto).split(/\s+/).filter(Boolean).every(termino=>normalizarTexto(calle).includes(termino));
+   let temporizadorSugerencias=null;
+   let consultaSugerencias=0;
+   const ocultarSugerencias=()=>{sugerencias.hidden=true;sugerencias.innerHTML=''};
+   const buscarSugerencias=async()=>{
+    const texto=inputCalle.value.trim();
+    const localidadSeleccionada=normalizarTexto(selectorLocalidad.selectedOptions[0]?.textContent);
+    const departamentoSeleccionado=normalizarTexto(selectorDepartamento.selectedOptions[0]?.textContent);
+    if(texto.length<3||!selectorLocalidad.value||!localidadSeleccionada||!departamentoSeleccionado){ocultarSugerencias();return}
+    const consultaActual=++consultaSugerencias;
+    try{
+     let resultados=await obtenerSugerenciasDireccion(texto);
+     if(consultaActual!==consultaSugerencias)return;
+     const esResultadoValido=resultado=>normalizarTexto(resultado.localidad)===localidadSeleccionada&&normalizarTexto(resultado.departamento)===departamentoSeleccionado&&contieneTerminosBuscados(resultado.calle||resultado.nomVia||resultado.address,texto);
+     let filtrados=resultados.filter(esResultadoValido).slice(0,6);
+     if(!filtrados.length){
+      for(const prefijo of ['AVENIDA','CALLE']){
+       const resultadosAlternativos=await obtenerSugerenciasDireccion(prefijo+' '+texto);
+       filtrados=resultadosAlternativos.filter(esResultadoValido).slice(0,6);
+       if(filtrados.length){resultados=resultadosAlternativos;break}
+      }
+     }
+     sugerencias.innerHTML='';
+     filtrados.forEach((resultado,index)=>{
+      const boton=document.createElement('button');
+      boton.type='button';
+      boton.className='address-suggestion';
+      boton.textContent=resultado.calle||resultado.nomVia||resultado.address||texto;
+      boton.addEventListener('mousedown',event=>{event.preventDefault();inputCalle.value=resultado.calle||resultado.nomVia||resultado.address||texto;if(resultado.portalNumber&&!envioBloque.querySelector('input[name="door"]').value)envioBloque.querySelector('input[name="door"]').value=resultado.portalNumber;ocultarSugerencias()});
+      sugerencias.append(boton);
+     });
+     if(!filtrados.length){
+      const boton=document.createElement('button');
+      boton.type='button';
+      boton.className='address-suggestion address-suggestion-manual';
+      boton.textContent='Usar "'+texto+'"';
+      boton.addEventListener('mousedown',event=>{event.preventDefault();ocultarSugerencias()});
+      sugerencias.append(boton);
+     }
+     sugerencias.hidden=false;
+    }catch(error){ocultarSugerencias()}
+   };
+   inputCalle.addEventListener('input',()=>{clearTimeout(temporizadorSugerencias);temporizadorSugerencias=setTimeout(buscarSugerencias,350)});
+   inputCalle.addEventListener('blur',()=>setTimeout(ocultarSugerencias,150));
+   selectorLocalidad.addEventListener('change',buscarSugerencias);
+   const actualizarEntrega=()=>{const esEnvio=selectorEntrega.value==='envio';envioBloque.hidden=!esEnvio;envioBloque.querySelectorAll('input,select').forEach(campo=>{campo.required=esEnvio});if(direccionOriginal)direccionOriginal.hidden=true};
+   selectorEntrega.addEventListener('change',actualizarEntrega);
+   selectorDepartamento.addEventListener('change',async()=>{selectorLocalidad.disabled=true;selectorLocalidad.innerHTML='<option value="">Cargando localidades...</option>';if(!selectorDepartamento.value)return;try{const lista=await obtenerLocalidadesAdmin(user.token,selectorDepartamento.value);selectorLocalidad.innerHTML='<option value="">Seleccionar localidad</option>'+lista.map(localidad=>'<option value="'+localidad.id+'">'+localidad.nombre+'</option>').join('');selectorLocalidad.disabled=false}catch(error){selectorLocalidad.innerHTML='<option value="">No se pudieron cargar</option>'}});
+   actualizarEntrega();
+   const productoLabel=formulario.querySelector('select[name="productId"]').closest('label');
+   const cantidadLabel=formulario.querySelector('input[name="quantity"]').closest('label');
+   const productosBloque=document.createElement('div');
+   productosBloque.className='order-products-field';
+   const productosTitulo=document.createElement('strong');
+   productosTitulo.textContent='Productos';
+   const lineas=document.createElement('div');
+   lineas.className='order-product-lines';
+   const agregarProducto=document.createElement('button');
+   agregarProducto.type='button';
+   agregarProducto.className='btn o s';
+   agregarProducto.textContent='Agregar producto';
+   productosBloque.append(productosTitulo,lineas);
+   lineas.append(productoLabel,cantidadLabel);
+   lineas.append(agregarProducto);
+   formulario.insertBefore(productosBloque,formulario.querySelector('select[name="payment"]').closest('label'));
+   agregarProducto.addEventListener('click',()=>{const nuevaProducto=productoLabel.cloneNode(true),nuevaCantidad=cantidadLabel.cloneNode(true);nuevaProducto.querySelector('select').value='';nuevaCantidad.querySelector('input').value='1';lineas.append(nuevaProducto,nuevaCantidad)});
+   formulario.addEventListener('submit',async event=>{event.preventDefault();event.stopImmediatePropagation();const datos=new FormData(formulario);const ids=datos.getAll('productId'),cantidades=datos.getAll('quantity'),items=ids.map((id,index)=>({id:Number(id),quantity:Number(cantidades[index])})).filter(item=>item.id&&Number.isInteger(item.quantity)&&item.quantity>0);const errorFormulario=fondo.querySelector('.order-form-error');errorFormulario.textContent='';if(!items.length){errorFormulario.textContent='Agregá al menos un producto válido.';return}try{await crearPedido({token:user.token,name:datos.get('name'),email:datos.get('email'),phone:datos.get('phone'),address:datos.get('address'),deliveryType:datos.get('deliveryType'),departmentId:Number(datos.get('departmentId')),localityId:Number(datos.get('localityId')),street:datos.get('street'),door:datos.get('door'),apartment:datos.get('apartment'),addressExtra:datos.get('addressExtra'),payment:datos.get('payment'),items});cerrar();setPedidos(await obtenerPedidosAdmin(user.token))}catch(error){errorFormulario.textContent=error.message}},true);
+   fondo.querySelector('form').addEventListener('submit',async event=>{event.preventDefault();const datos=new FormData(event.currentTarget);const errorFormulario=fondo.querySelector('.order-form-error');errorFormulario.textContent='';try{await crearPedido({token:user.token,name:datos.get('name'),email:datos.get('email'),phone:datos.get('phone'),address:datos.get('address'),deliveryType:datos.get('deliveryType'),departmentId:Number(datos.get('departmentId')),localityId:Number(datos.get('localityId')),street:datos.get('street'),door:datos.get('door'),apartment:datos.get('apartment'),addressExtra:datos.get('addressExtra'),payment:datos.get('payment'),items:[{id:Number(datos.get('productId')),quantity:Number(datos.get('quantity'))}]});cerrar();setPedidos(await obtenerPedidosAdmin(user.token))}catch(error){errorFormulario.textContent=error.message}});
+   document.body.append(fondo);
+   fondo.querySelector('input[name="name"]').focus();
+  };
+  const click=event=>{if(event.target.closest?.('.add-order-button'))abrir()};
+  document.addEventListener('click',click);
+  return()=>document.removeEventListener('click',click);
+ },[active,target,productos,user?.token]);
+ if(!active||!target)return null;
+ const fecha=valor=>valor?new Date(valor).toLocaleString('es-UY',{dateStyle:'short',timeStyle:'short'}):'—';
+ const guardarPedido=async event=>{event.preventDefault();setError('');const item={id:Number(form.productId),quantity:Number(form.quantity)};if(!form.name.trim()||!/^\S+@\S+\.\S+$/.test(form.email)||!form.phone.trim()||!form.address.trim()||!item.id||!Number.isInteger(item.quantity)||item.quantity<1)return setError('Completá los datos del cliente y seleccioná un producto válido.');try{await crearPedido({token:user.token,name:form.name,email:form.email,phone:form.phone,address:form.address,payment:form.payment,items:[item]});setModal(false);setForm({name:'',email:'',phone:'',address:'',productId:'',quantity:'1',payment:'pendiente'});setPedidos(await obtenerPedidosAdmin(user.token))}catch(error){setError(error.message)}};
+ return createPortal(<><button type="button" className="btn add-order-button">Agregar pedido</button><section className="box admin-orders"><h2>Pedidos</h2>{error&&<p className="err" role="alert">{error}</p>}<div className="order-grid order-grid-head"><b>Pedido</b><b>Fecha</b><b>Cliente</b><b>Contacto</b><b>Entrega</b><b>Estado</b><b>Pago</b><b>Total</b><b>Productos</b></div>{pedidos.length?pedidos.map(pedido=><div className="order-grid order-grid-row" key={pedido.id}><span><b>#{pedido.id}</b></span><span>{fecha(pedido.fecha)}</span><span><b>{pedido.nombre_cliente||'—'}</b><small>{pedido.email_cliente||'—'}</small></span><span>{pedido.telefono||'—'}<small>{pedido.direccion||'—'}</small></span><span>{pedido.tipo_entrega||'—'}</span><span className="product-status">{pedido.estado||'—'}</span><span>{pedido.metodo_pago||'—'}<small>{pedido.estado_pago||'—'}</small></span><span>$U {Number(pedido.total||0).toLocaleString('es-UY')}</span><span>{pedido.productos?.length?pedido.productos.map(producto=><span className="order-product-line" key={producto.id}>{producto.nombre||'Producto'} × {producto.cantidad}</span>):'—'}</span></div>):<p className="muted">No hay pedidos registrados.</p>}</section></>,target);
+}
+
 function AdminApp(){
  const [visible,setVisible]=useState(location.hash.slice(1)==='admin');
  const [target,setTarget]=useState(null);
- const [resumen,setResumen]=useState(null),[clientes,setClientes]=useState([]),[proveedores,setProveedores]=useState([]),[compras,setCompras]=useState([]),[productosAdmin,setProductosAdmin]=useState([]),[error,setError]=useState('');
+ const [resumen,setResumen]=useState(null),[clientes,setClientes]=useState([]),[pedidos,setPedidos]=useState([]),[proveedores,setProveedores]=useState([]),[compras,setCompras]=useState([]),[productosAdmin,setProductosAdmin]=useState([]),[error,setError]=useState('');
  const [form,setForm]=useState({nombre:'',descripcion:'',precio:'',stock:'',categoria_id:''});
  const [archivosImagenes,setArchivosImagenes]=useState([]);
  const [editandoId,setEditandoId]=useState(null);
@@ -382,7 +533,7 @@ function AdminApp(){
  },[]);
  useEffect(()=>{const change=()=>setVisible(location.hash.slice(1)==='admin');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[]);
  useEffect(()=>{const moverBotones=()=>{const vistos=new Set();document.querySelectorAll('.add-provider-button,.add-purchase-button').forEach(boton=>{const esProveedor=boton.classList.contains('add-provider-button');const tipo=esProveedor?'proveedores':'compras';if(vistos.has(tipo)){boton.remove();return}vistos.add(tipo);const corresponde=esProveedor?seccion==='proveedores':seccion==='compras';boton.hidden=!corresponde;const panel=boton.closest('.admin-providers,.admin-purchases');if(panel?.parentElement&&boton.parentElement===panel)panel.parentElement.insertBefore(boton,panel)})};moverBotones();const observer=new MutationObserver(moverBotones);observer.observe(document.body,{childList:true,subtree:true});return()=>observer.disconnect()},[visible,seccion,proveedores.length,compras.length]);
- useEffect(()=>{if(!visible||user?.rol!=='admin')return;let frame=0;const ajustarBotones=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{document.querySelectorAll('.add-product-button,.add-provider-button,.add-purchase-button').forEach(boton=>{if(boton.hidden)return;const parent=boton.parentElement;const panel=parent?.querySelector('.box')||boton.closest('.admin-providers,.admin-purchases');if(!parent||!panel)return;const parentStyles=getComputedStyle(parent);const inicioContenido=parent.getBoundingClientRect().left+parseFloat(parentStyles.paddingLeft||'0');const rect=panel.getBoundingClientRect();boton.style.width=rect.width+'px';boton.style.maxWidth='none';boton.style.marginLeft=Math.max(0,rect.left-inicioContenido)+'px';boton.style.marginRight='0px'})})};ajustarBotones();const observer=new MutationObserver(ajustarBotones);observer.observe(document.body,{childList:true,subtree:true});const resizeObserver=new ResizeObserver(ajustarBotones);document.querySelectorAll('.admin-screen,.admin-products>.box,.admin-providers,.admin-purchases').forEach(elemento=>resizeObserver.observe(elemento));return()=>{cancelAnimationFrame(frame);observer.disconnect();resizeObserver.disconnect()}},[visible,seccion,user?.rol,productosAdmin.length,proveedores.length,compras.length]);
+ useEffect(()=>{if(!visible||user?.rol!=='admin')return;let frame=0;const ajustarBotones=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{document.querySelectorAll('.add-product-button,.add-provider-button,.add-purchase-button,.add-order-button').forEach(boton=>{if(boton.hidden)return;const parent=boton.parentElement;const panel=boton.classList.contains('add-order-button')?document.querySelector('.admin-orders'):(parent?.querySelector('.box')||boton.closest('.admin-providers,.admin-purchases'));if(!parent||!panel)return;const parentStyles=getComputedStyle(parent);const inicioContenido=parent.getBoundingClientRect().left+parseFloat(parentStyles.paddingLeft||'0');const rect=panel.getBoundingClientRect();boton.style.width=rect.width+'px';boton.style.maxWidth='none';boton.style.marginLeft=Math.max(0,rect.left-inicioContenido)+'px';boton.style.marginRight='0px'})})};ajustarBotones();const observer=new MutationObserver(ajustarBotones);observer.observe(document.body,{childList:true,subtree:true});const resizeObserver=new ResizeObserver(ajustarBotones);document.querySelectorAll('.admin-screen,.admin-products>.box,.admin-providers,.admin-purchases,.admin-orders').forEach(elemento=>resizeObserver.observe(elemento));return()=>{cancelAnimationFrame(frame);observer.disconnect();resizeObserver.disconnect()}},[visible,seccion,user?.rol,productosAdmin.length,proveedores.length,compras.length]);
  useEffect(()=>setTarget(document.querySelector('#admin-host')),[visible]);
  useEffect(()=>{
   return; /*
@@ -855,6 +1006,8 @@ const toggle=async p=>{try{await cambiarEstadoProductoAdmin(user.token,p.id,!p.a
  const categorias=[['1','Cocina'],['2','Decoración'],['3','Textiles'],['4','Velas y aromas'],['5','Organización']];
  const secciones=[['productos','Productos'],['proveedores','Proveedores'],['compras','Compras'],['pedidos','Pedidos'],['clientes','Clientes'],['ventas','Ventas'],['categorias','Categoría'],['envios','Envíos']];
  const categoriaSelect=(values,setValues)=><select value={values.categoria_id} onChange={e=>setValues({...values,categoria_id:e.target.value})}><option value="">Sin categoría</option>{categorias.map(([id,nombre])=><option key={id} value={id}>{nombre}</option>)}</select>;
+ const fechaPedido=fecha=>fecha?new Date(fecha).toLocaleString('es-UY',{dateStyle:'short',timeStyle:'short'}):'—';
+ const pedidosPanel=<section className="box admin-orders"><h2>Pedidos</h2><div className="order-grid order-grid-head"><b>Pedido</b><b>Fecha</b><b>Cliente</b><b>Contacto</b><b>Entrega</b><b>Estado</b><b>Pago</b><b>Total</b><b>Productos</b></div>{pedidos.length?pedidos.map(pedido=><div className="order-grid order-grid-row" key={pedido.id}><span><b>#{pedido.id}</b></span><span>{fechaPedido(pedido.fecha)}</span><span><b>{pedido.nombre_cliente||'—'}</b><small>{pedido.email_cliente||'—'}</small></span><span>{pedido.telefono||'—'}<small>{pedido.direccion||'—'}</small></span><span>{pedido.tipo_entrega||'—'}</span><span className="product-status">{pedido.estado||'—'}</span><span>{pedido.metodo_pago||'—'}<small>{pedido.estado_pago||'—'}</small></span><span>$U {Number(pedido.total||0).toLocaleString('es-UY')}</span><span>{pedido.productos?.length?pedido.productos.map(producto=><span className="order-product-line" key={producto.id}>{producto.nombre||'Producto'} × {producto.cantidad}</span>):'—'}</span></div>):<p className="muted">No hay pedidos registrados.</p>}</section>;
  return createPortal(<div className="admin-screen"><div className="admin-top"><button className="btn o s" onClick={()=>{location.hash='inicio'}}>Volver a la tienda</button></div><div className="admin-menu"><select id="admin-section" value={seccion} onChange={e=>setSeccion(e.target.value)}>{secciones.map(([id,nombre])=><option key={id} value={id}>{nombre}</option>)}</select></div>{error&&<p className="err" role="alert">{error}</p>}{seccion==='productos'&&<div className="admin-products"><button className="btn add-product-button" onClick={()=>setCreando(true)}>Agregar producto</button><section className="box"><div className="product-grid product-grid-head"><b>Nombre</b><b>Imágenes</b><b>Descripción</b><b>Precio</b><b>Rebaja</b><b>Stock</b><b>Categoría</b><b>Estado</b><b>Acciones</b></div>{productosAdmin.map(p=><div className="product-grid product-grid-row" key={p.id}><span><b>{p.nombre}</b></span><span className="product-thumbnails">{Array.from({length:5},(_,index)=>{const imagen=p.imagenes?.[index];const url=imagen?.url||imagen;return <span className={'product-thumb-slot '+(url?'loaded':'empty')} key={url||'empty-'+index}>{url?<img src={url} alt="Vista previa" onClick={()=>setImagenPreview(url)}/>:<img src={imagenDefault} alt="Sin imagen"/>}</span>})}</span><span>{p.descripcion||'—'}</span><span data-sort-value={p.precio}>$U {Number(p.precio).toLocaleString('es-UY')}</span><span data-sort-value={p.precio_rebaja??''}>{p.precio_rebaja||'—'}</span><span data-sort-value={p.stock}>{p.stock}</span><span>{p.categoria||'Sin categoría'}</span><span className={p.activo?'product-status is-active':'product-status is-inactive'}>{p.activo?'Activo':'Inactivo'}</span><span className="admin-actions"><button className="btn s" onClick={()=>iniciarEdicion(p)}>Editar</button><button className={'btn o s state-toggle '+(p.activo?'is-inactive':'is-active')} onClick={()=>toggle(p)}>{p.activo?'Desactivar':'Activar'}</button><button className="btn danger s" onClick={()=>remove(p)}>Borrar</button></span></div>)}{editandoId!==null&&<div className="modal-backdrop" onClick={cancelarEdicion}><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="edit-product-title" onClick={e=>e.stopPropagation()}><button className="modal-close" type="button" onClick={cancelarEdicion} aria-label="Cerrar">×</button><form className="product-edit-form" onSubmit={guardarEdicion}><h3 id="edit-product-title">Editar producto</h3><label>Nombre<input required value={editForm.nombre} onChange={e=>setEditForm({...editForm,nombre:e.target.value})}/></label><label>Descripción<textarea value={editForm.descripcion} onChange={e=>setEditForm({...editForm,descripcion:e.target.value})}/></label><div className="product-edit-fields"><label>Precio<input required type="number" min="0" value={editForm.precio} onChange={e=>setEditForm({...editForm,precio:e.target.value})}/></label><label>Rebaja<input type="number" min="0" value={editForm.precio_rebaja} onChange={e=>setEditForm({...editForm,precio_rebaja:e.target.value})}/></label><label>Stock<input required type="number" min="0" value={editForm.stock} onChange={e=>setEditForm({...editForm,stock:e.target.value})}/></label><label>Categoría{categoriaSelect(editForm,setEditForm)}</label></div><div className="edit-images"><span>Imágenes del producto (máximo 5)</span><div className="edit-image-slots">{Array.from({length:5},(_,index)=>{const imagen=(productoEditando?.imagenes||[]).filter(item=>!imagenesQuitadas.includes(item.url||item))[index];const archivo=editArchivos[index];const url=imagen?.url||imagen;return <span className={'edit-image-slot '+(url||archivo?'loaded':'empty')} key={url||archivo?.name||'empty-'+index}>{url?<><img src={url} alt={'Imagen '+(index+1)}/><button type="button" className="edit-image-remove" onClick={()=>{setImagenesQuitadas(actuales=>{const siguiente=actuales.includes(url)?actuales:actuales.concat(url);window.__imagenesConservar=(productoEditando?.imagenes||[]).map(item=>item.url||item).filter(item=>!siguiente.includes(item));return siguiente})}} aria-label="Quitar imagen">×</button></>:archivo?<><img src={archivo.preview||imagenDefault} alt={'Imagen pendiente '+(index+1)}/><button type="button" className="edit-image-remove" onClick={()=>setEditArchivos(actuales=>{const siguiente=[...actuales];siguiente[index]=null;return siguiente})} aria-label="Quitar imagen">×</button></>:<><img src={imagenDefault} alt="Sin imagen"/><label className="edit-image-add" aria-label={'Agregar imagen '+(index+1)}>+<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={event=>{const nuevo=event.target.files?.[0];if(!nuevo)return;const archivoConVista=Object.assign(nuevo,{preview:URL.createObjectURL(nuevo)});setEditArchivos(actuales=>{const siguiente=[...actuales];siguiente[index]=archivoConVista;return siguiente.slice(0,5)});event.target.value=''}}/></label></>}</span>})}</div><small>{(productoEditando?.imagenes||[]).filter(item=>!imagenesQuitadas.includes(item.url||item)).length+editArchivos.filter(Boolean).length} cargadas - {Math.max(0,5-(productoEditando?.imagenes||[]).filter(item=>!imagenesQuitadas.includes(item.url||item)).length-editArchivos.filter(Boolean).length)} lugares libres.</small></div><label className="checkbox-label"><input type="checkbox" checked={quitarImagenes} onChange={e=>setQuitarImagenes(e.target.checked)}/> Quitar imágenes actuales</label><div className="admin-actions"><button className="btn s" type="submit">Guardar cambios</button><button className="btn o s" type="button" onClick={cancelarEdicion}>Cancelar</button></div></form></div></div>}{creando&&<div className="modal-backdrop" onClick={()=>setCreando(false)}><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="add-product-title" onClick={e=>e.stopPropagation()}><button className="modal-close" type="button" onClick={()=>setCreando(false)} aria-label="Cerrar">×</button><form className="product-edit-form" onSubmit={save}><h3 id="add-product-title">Agregar producto</h3>{[['nombre','Nombre'],['descripcion','Descripción'],['precio','Precio'],['stock','Stock']].map(([name,label])=><label key={name}>{label}<input name={name} type={name==='precio'||name==='stock'?'number':'text'} min={name==='precio'||name==='stock'?'0':undefined} required value={form[name]} onChange={e=>setForm({...form,[name]:e.target.value})}/></label>)}<label>Imágenes del producto (máximo 5)<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={e=>setArchivosImagenes([...e.target.files].slice(0,5))}/><small>{archivosImagenes.length} seleccionadas</small></label><label>Categoría{categoriaSelect(form,setForm)}</label><button className="btn" type="submit">Guardar producto</button><small>Los productos nuevos se guardan desactivados.</small></form></div></div>}{imagenPreview&&<div className="modal-backdrop" onClick={()=>setImagenPreview(null)}><div className="image-preview-modal" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><button className="modal-close" type="button" onClick={()=>setImagenPreview(null)} aria-label="Cerrar">×</button><img src={imagenPreview} alt="Imagen del producto ampliada"/></div></div>}</section></div>}{seccion==='clientes'&&<section className="box"><h2>Clientes registrados</h2>{clientes.length?clientes.map(c=><div className="admin-row" key={c.id}><span><b>{c.nombre}</b><small>{c.email}</small></span><small>{c.fecha_registro?new Date(c.fecha_registro).toLocaleDateString('es-UY'):''}</small></div>):<p>No hay clientes registrados.</p>}</section>}<>{seccion==='pedidos'&&<section className="box admin-section-card"><h2>Pedidos</h2><p>Hay <b>{resumen?.pedidos??0}</b> pedidos registrados.</p><p className="muted">La gestión detallada de pedidos se conectará en esta sección.</p></section>}{seccion==='ventas'&&<section className="box admin-section-card"><h2>Ventas</h2><p>Resumen de ventas disponible próximamente.</p><p className="muted">Aquí se podrán consultar totales, períodos y productos más vendidos.</p></section>}{seccion==='categorias'&&<section className="box admin-section-card"><h2>Categorías</h2><div className="admin-category-list">{categorias.map(([id,nombre])=><div className="admin-row" key={id}><b>{nombre}</b><small>ID: {id}</small></div>)}</div><p className="muted">La creación y edición de categorías se agregará aquí.</p></section>}{seccion==='envios'&&<section className="box admin-section-card"><h2>Envíos</h2><p>Configuración y seguimiento de envíos.</p><p className="muted">Esta sección queda preparada para conectar estados y métodos de entrega.</p></section>}</></div>,target);
 }
 
@@ -863,4 +1016,4 @@ class AppErrorBoundary extends React.Component{
  static getDerivedStateFromError(error){return {error}};
  render(){return this.state.error?<main className="wrap empty"><h2>Ocurrió un error inesperado</h2><p>Recargá la página para intentar nuevamente.</p><button className="btn" onClick={()=>location.reload()}>Recargar</button></main>:this.props.children}
 }
-createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminSidebar/><UserSidebar/><BrandSidebarButton/><AdminSidebarToggle/><AdminStoreButton/></></AppErrorBoundary>);
+createRoot(document.getElementById('root')).render(<AppErrorBoundary><><App/><ProfileMenu/><AdminNav/><AdminApp/><AdminOrdersGrid/><AdminSidebar/><UserSidebar/><BrandSidebarButton/><AdminSidebarToggle/><AdminStoreButton/></></AppErrorBoundary>);

@@ -60,6 +60,14 @@ async function adminFetch(path, token, options = {}) {
 
 export function obtenerResumenAdmin(token) { return adminFetch("/resumen", token); }
 export function obtenerClientesAdmin(token) { return adminFetch("/clientes", token); }
+export function obtenerPedidosAdmin(token) { return adminFetch("/pedidos", token); }
+export function obtenerDepartamentosAdmin(token) { return adminFetch("/departamentos", token); }
+export function obtenerLocalidadesAdmin(token, departamentoId) { return adminFetch(`/localidades?departamento_id=${encodeURIComponent(departamentoId)}`, token); }
+export async function obtenerSugerenciasDireccion(texto) {
+  const respuesta = await fetch(`https://direcciones.ide.uy/api/v0/geocode/SugerenciaCalleCompleta?entrada=${encodeURIComponent(texto)}`);
+  if (!respuesta.ok) throw new Error("No se pudieron obtener sugerencias de dirección");
+  return respuesta.json();
+}
 export function obtenerProveedoresAdmin(token) { return adminFetch("/proveedores", token); }
 export function obtenerComprasAdmin(token) { return adminFetch("/compras", token); }
 export function crearCompraAdmin(token, compra) { return adminFetch("/compras", token, { method: "POST", body: JSON.stringify(compra) }); }
